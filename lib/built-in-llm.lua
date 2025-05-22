@@ -22,5 +22,5 @@ function axLLM(triggerId, prompt) end
 
 --- @param triggerId string
 --- @param text string
---- @return Awaitable<number>
+--- @return Promise<number>
 function getTokens(triggerId, text) end

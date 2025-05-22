@@ -1,0 +1,56 @@
+<style>
+  .lb-stage-entry {
+    background: var(--risu-theme-bgcolor);
+    border: 1px solid var(--FontColorStandard);
+    border-radius: 4px;
+    color: var(--FontColorStandard);
+    padding: 8px 0;
+  }
+
+  .lb-stage-entry-window {
+    display: block;
+    overflow: hidden;
+  }
+
+  @keyframes flow {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+  .lb-stage-entry-roller {
+    animation: flow linear infinite 10000ms;
+    display: block;
+    position: relative;
+  }
+  .lb-stage-entry-roller * {
+    display: block;
+    padding-right: 1em;
+  }
+  .lb-stage-entry-roller *::before {
+    content: 'Now Playing: ';
+  }
+  .lb-stage-entry-roller :last-child {
+    inset: 0;
+    position: absolute;
+    transform: translateX(100%);
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  .lb-stage-dialog {
+    background: var(--risu-theme-bgcolor);
+    border: 1px solid var(--FontColorStandard);
+    border-radius: 8px;
+    color: var(--FontColorStandard);
+    padding: 16px;
+  }
+</style>
