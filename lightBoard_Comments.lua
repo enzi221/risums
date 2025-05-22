@@ -1,3 +1,18 @@
+--- Copyright (c) 2025 amonamona
+--- CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+--- LightBoard Comments
+
+--- @param s string
+--- @return string
+local function trim(s)
+  -- Remove leading whitespace (%s* at the start ^)
+  s = string.gsub(s, "^%s*", "")
+  -- Remove trailing whitespace (%s* at the end $)
+  s = string.gsub(s, "%s*$", "")
+  return s
+end
+
 ---Extracts all `<lightboard-comments>` nodes.
 ---@param text string
 ---@return table[]
@@ -75,40 +90,35 @@ end
 
 ---Parses a block into a proper table.
 ---@param block string
+---@param tagToEnd string[]?
 ---@return table
-local function parseBlock(block)
+local function parseBlock(block, tagToEnd)
   local metadata = {}
 
-  local tagStart = block:find("%[.-%]")
-  if tagStart then
-    block = block:sub(1, tagStart - 1)
+  if type(tagToEnd) == "table" then
+    for _, tag in ipairs(tagToEnd) do
+      if tag and tag ~= "" then
+        local currentPattern = "%[" .. tag:gsub("(%W)", "%%%1") .. "%]"
+        local tagStartMatch = block:find(currentPattern)
+        if tagStartMatch then
+          block = block:sub(1, tagStartMatch - 1)
+          break
+        end
+      end
+    end
   end
 
   local contentMatch = block:match("Content:(.-)$")
   if contentMatch then
-    metadata["Content"] = contentMatch:gsub("^%s+", "")
+    metadata["Content"] = trim(contentMatch)
     block = block:gsub("Content:.*$", "")
   end
 
-  local authorEnd = block:find("|")
-
-  local author = block:sub(1, authorEnd - 1)
-  local authorTierEnd = author:find(":")
-
-  if authorTierEnd then
-    metadata["Author"] = author:sub(authorTierEnd + 1):gsub("%s+$", "")
-    metadata["AuthorTier"] = author:sub(1, authorTierEnd - 1)
-  else
-    metadata["Author"] = author:gsub("%s+$", "")
-    metadata["AuthorTier"] = nil
-  end
-
-  local rest = block:sub(authorEnd + 1)
-  for part in rest:gmatch("([^|]+)") do
+  for part in block:gmatch("([^|]+)") do
     local field, value = part:match("([^:]+):(.+)")
     if field and value then
-      field = field:gsub("^%s+", ""):gsub("%s+$", "")
-      value = value:gsub("^%s+", ""):gsub("%s+$", "")
+      field = trim(field)
+      value = trim(value)
       metadata[field] = value
     end
   end
@@ -135,7 +145,13 @@ local function render(block)
       postBlock = post
     end
 
-    local metadata = parseBlock(postBlock)
+    local metadata = parseBlock(postBlock, { "Post", "Comment" })
+    local authorTierEnd = metadata["Author"]:find(":")
+    if authorTierEnd then
+      metadata["AuthorTier"] = metadata["Author"]:sub(1, authorTierEnd - 1)
+      metadata["Author"] = metadata["Author"]:sub(authorTierEnd + 1)
+    end
+
     currentPost = {
       author = metadata["Author"],
       authorTier = metadata["AuthorTier"],
@@ -148,6 +164,11 @@ local function render(block)
 
     for _, commentBlock in ipairs(extractBlocks("Comment", post)) do
       local commentMetadata = parseBlock(commentBlock)
+      local commentAuthorTierEnd = commentMetadata["Author"]:find(":")
+      if commentAuthorTierEnd then
+        commentMetadata["AuthorTier"] = commentMetadata["Author"]:sub(1, commentAuthorTierEnd - 1)
+        commentMetadata["Author"] = commentMetadata["Author"]:sub(commentAuthorTierEnd + 1)
+      end
       local comment = {
         author = commentMetadata["Author"],
         authorTier = commentMetadata["AuthorTier"],
@@ -167,7 +188,7 @@ local function render(block)
 
   table.insert(
     html,
-    '<details class="lb-comment-root"><summary class="lb-comment-open">🖥️ 라이트라 댓글 (열기/닫기)</summary>'
+    '<details class="lb-module-root" name="lightboard-comment"><summary class="lb-opener"><span>댓글</span></summary>'
   )
   table.insert(html, '<div class="lb-comment-container">')
 
@@ -177,29 +198,31 @@ local function render(block)
       if post.content then
         local postAuthor = escapeHtml(post.author or "ㅇㅇ")
         local postAuthorTier = post.authorTier or ""
-        local postContent = escapeHtml(post.content or ""):gsub("\n", "<br>"):gsub("\\n", "<br>"):gsub("\r", "")
+        local postContent = escapeHtml(post.content or ""):gsub("\n", "<br>"):gsub("\\n", "<br>")
         local postDownvotes = escapeHtml(post.downvotes or "-")
         local postTime = escapeHtml(post.time or "-")
         local postUpvotes = escapeHtml(post.upvotes or "-")
 
-        table.insert(html, '<div class="lb-comment-card">')
-        table.insert(html, '<div class="lb-comment-header">')
+        table.insert(html, '<div class="lb-comment-card" style="animation-delay:' .. (i - 1) * 0.1 .. 's">')
+        table.insert(html, '<div class="lb-comment-top"><div class="lb-comment-header">')
+
+        -- <div style="display: flex; align-items: center;"><div class="lb-comment-avatar">' ..
+        --   utf8sub(postAuthor, 1, 1) ..
+        --   '</div>
 
         table.insert(html,
-          '<div style="display: flex; align-items: center;"><div class="lb-comment-avatar">' ..
-          utf8sub(postAuthor, 1, 1) ..
-          '</div><div class="lb-comment-author-details"><span class="lb-comment-author">' ..
+          '<div class="lb-comment-author-details"><span class="lb-comment-author">' ..
           grantMedal(postAuthorTier) ..
-          postAuthor .. '</span><div class="lb-comment-timestamp">' .. postTime .. '</div></div></div>')
+          postAuthor .. '</span><div class="lb-comment-timestamp">' .. postTime .. '</div></div>')
         table.insert(html,
-          '<div class="lb-comment-actions"><button type="button" class="lb-comment-action-button" data-like>👍 <span class="lb-count">' ..
+          '<div class="lb-comment-actions"><button type="button" class="lb-comment-action-button" data-like>👍 <span class="lb-comment-count">' ..
           postUpvotes ..
-          '</span></button><button type="button" class="lb-comment-action-button"  data-dislike>👎 <span class="lb-count">' ..
+          '</span></button><button type="button" class="lb-comment-action-button"  data-dislike>👎 <span class="lb-comment-count">' ..
           postDownvotes .. '</span></button></div>')
 
-        table.insert(html, '</div>') -- comment-header
+        table.insert(html, '</div>')                                                              -- comment-header
 
-        table.insert(html, '<p class="lb-comment-content">' .. postContent .. '</p>')
+        table.insert(html, '<span class="lb-comment-content">' .. postContent .. '</span></div>') -- comment-top
 
         local commentCount = #post.comments
 
@@ -209,17 +232,19 @@ local function render(block)
           for _, comment in ipairs(post.comments) do
             local commentAuthor = escapeHtml(comment.author or "ㅇㅇ")
             local commentAuthorTier = comment.authorTier or ""
-            local commentContent = escapeHtml(comment.content or ""):gsub("\n", "<br>"):gsub("\\n", "<br>"):gsub("\r", "")
+            local commentContent = escapeHtml(comment.content or ""):gsub("\n", "<br>"):gsub("\\n", "<br>")
             local commentTime = escapeHtml(comment.time or "")
+
+            -- <div class="lb-comment-reply-avatar">' ..
+            --   utf8sub(commentAuthor, 1, 1) ..
+            --   '</div>
 
             table.insert(html, '<div class="lb-comment-reply-card">')
             table.insert(html,
-              '<div class="lb-comment-reply-header"><div class="lb-comment-reply-avatar">' ..
-              utf8sub(commentAuthor, 1, 1) ..
-              '</div><div class="lb-comment-reply-author-details"><span class="lb-comment-reply-author">' ..
+              '<div class="lb-comment-reply-header"><div class="lb-comment-author-details"><span class="lb-comment-author">' ..
               grantMedal(commentAuthorTier) ..
-              commentAuthor .. '</span><div class="lb-comment-reply-timestamp">' .. commentTime .. '</div></div></div>')
-            table.insert(html, '<p class="lb-comment-reply-content">' .. commentContent .. '</p>')
+              commentAuthor .. '</span><div class="lb-comment-timestamp">' .. commentTime .. '</div></div></div>')
+            table.insert(html, '<span class="lb-comment-reply-content">' .. commentContent .. '</span>')
             table.insert(html, '</div>')
           end
 

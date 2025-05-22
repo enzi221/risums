@@ -1,6 +1,8 @@
----Extracts all `<lightboard-hn>` nodes.
----@param text string
----@return string[]
+--- LightBoard HN
+
+--- Extracts all `<lightboard-hn>` nodes.
+--- @param text string
+--- @return string[]
 local function extractAllNodes(text)
   local results = {}
   local i = 1
@@ -158,14 +160,15 @@ local function render(block)
 
   table.insert(
     html,
-    '<details class="hunter-details"><summary><span>📂 ' .. escapeHtml(boardName) .. " (열기/닫기)</span></summary>"
+    '<details class="lb-module-root" data-fe="lightboard-hn"><summary class="lb-opener"><span>' ..
+    escapeHtml(boardName) .. "</span></summary>"
   )
 
   table.insert(
     html,
-    '<div class="hunter-container"><div class="hunter-header"><h1>' ..
+    '<div class="hunter-container"><div class="hunter-header"><span>' ..
     escapeHtml(boardName) ..
-    '</h1><div class="hunter-top-links"><span onclick="void(0);">헌터넷 정보</span> | <span onclick="void(0);">설정</span> | <span onclick="void(0);">퀘스트 게시판</span> | <span onclick="void(0);">프로필</span> | <span onclick="void(0);">길드 정보</span> | <span onclick="void(0);">새로고침</span></div></div><div class="hunter-options"><div class="tab-menu"><button class="tab-button active">전체글</button> <button class="tab-button">공지사항</button> <button class="tab-button">퀘스트</button></div><div class="hunter-actions"><select name="viewCount"><option value="30">30개</option><option value="50">50개</option><option value="100">100개</option></select><span onclick="void(0);" class="write-button"><i>📝</i> 글쓰기</span></div></div><div class="post-list-container"><div class="post-list-header"><div class="header-item col-num">번호</div> <div class="header-item col-title">제목</div> <div class="header-item col-writer">작성자</div> <div class="header-item col-date">등록일</div> <div class="header-item col-view">조회</div> <div class="header-item col-rank">추천</div></div><div class="post-list-body">'
+    '</span><div class="hunter-top-links"><span onclick="void(0);">헌터넷 정보</span> | <span onclick="void(0);">설정</span> | <span onclick="void(0);">퀘스트 게시판</span> | <span onclick="void(0);">프로필</span> | <span onclick="void(0);">길드 정보</span> | <span onclick="void(0);">새로고침</span></div></div><div class="hunter-options"><div class="tab-menu"><button class="tab-button active">전체글</button> <button class="tab-button">공지사항</button> <button class="tab-button">퀘스트</button></div><div class="hunter-actions"><select name="viewCount"><option value="30">30개</option><option value="50">50개</option><option value="100">100개</option></select><span onclick="void(0);" class="write-button"><i>📝</i> 글쓰기</span></div></div><div class="post-list-container"><div class="post-list-header"><div class="header-item col-num">번호</div> <div class="header-item col-title">제목</div> <div class="header-item col-writer">작성자</div> <div class="header-item col-date">등록일</div> <div class="header-item col-view">조회</div> <div class="header-item col-rank">추천</div></div><div class="post-list-body">'
   )
 
   -- 게시글 루프
@@ -178,7 +181,7 @@ local function render(block)
         local postViews = escapeHtml(post.views or "-")
         local postRank = escapeHtml(post.upvotes or "-")
         local postContent = escapeHtml(post.content or "")
-        postContent = postContent:gsub("\n", "<br>"):gsub("\\n", "<br>"):gsub("\r", "")
+        postContent = postContent:gsub("\n", "<br>"):gsub("\\n", "<br>")
 
         local author = post.author or {}
         local writerName = author.name or "-"
@@ -239,9 +242,7 @@ local function render(block)
                 (authorIp and '<span class="writer-ip">(' .. escapeHtml(authorIp) .. ")</span>" or
                   "")
 
-            local escapedCommentText = escapeHtml(commentText)
-            escapedCommentText = string.gsub(escapedCommentText, "\n", "<br>")
-            escapedCommentText = string.gsub(escapedCommentText, "\r", "")
+            local escapedCommentText = escapeHtml(commentText):gsub("\n", "<br>"):gsub("\\n", "<br>")
             local finalCommentHtmlText = (escapedCommentText ~= "" and escapedCommentText or "(내용 없음)")
 
             table.insert(commentsHtml, '<li class="comment-item">')
