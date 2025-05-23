@@ -189,11 +189,11 @@ local function render(block)
     table.insert(directionsData, parseBlock(dirBlockString))
   end
 
-  local html = {}
+  local html = {
+    '<div class="lb-module-root" data-id="lightboard-guide">',
+    '<details class="lb-collapsible lb-collapsible-animated" name="lightboard-guide"><summary class="lb-opener"><span>가이드</span></summary>'
+  }
 
-  table.insert(html,
-    '<details class="lb-module-root lb-module-root-animated" name="lightboard-guide"><summary class="lb-opener"><span>가이드</span></summary>'
-  )
   table.insert(html, '<div class="lb-guide-component-container">')
 
   -- Render Review Card
@@ -226,11 +226,14 @@ local function render(block)
       table.insert(html, '      </div>')
       table.insert(html, '    </button>')
     end
-    table.insert(html, '  </div>') -- close lb-guide-directions-row
+    table.insert(html, '  </div>') -- guide-directions-row
   end
 
-  table.insert(html, '</div>')     -- close lb-guide-component-container
-  table.insert(html, '</details>') -- close lb-module-root
+  table.insert(html, '</div>')     -- guide-component-container
+  table.insert(html, '</details>') -- collapsible
+  table.insert(html,
+    '<button class="lb-reroll" risu-btn="lb-reroll__lightboard-guide" type="button"><lb-reroll-icon /></button>')
+  table.insert(html, "</div>") -- module-rerollable
 
   return table.concat(html, "\n")
 end

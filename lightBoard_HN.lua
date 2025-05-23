@@ -1,8 +1,18 @@
 --- LightBoard HN
 
+--- @param s string
+--- @return string
+local function trim(s)
+  -- Remove leading whitespace (%s* at the start ^)
+  s = string.gsub(s, "^%s*", "")
+  -- Remove trailing whitespace (%s* at the end $)
+  s = string.gsub(s, "%s*$", "")
+  return s
+end
+
 --- Extracts all `<lightboard-hn>` nodes.
 --- @param text string
---- @return string[]
+--- @return table[]
 local function extractAllNodes(text)
   local results = {}
   local i = 1
@@ -156,20 +166,14 @@ local function render(block)
   end
 
   local boardName = block.boardName
-  local html = {}
-
-  table.insert(
-    html,
-    '<details class="lb-module-root" data-fe="lightboard-hn"><summary class="lb-opener"><span>' ..
-    escapeHtml(boardName) .. "</span></summary>"
-  )
-
-  table.insert(
-    html,
+  local html = {
+    '<div class="lb-module-root" data-id="lightboard-hn">',
+    '<details class="lb-collapsible" name="lightboard-hn"><summary class="lb-opener"><span>' ..
+    escapeHtml(boardName) .. "</span></summary>",
     '<div class="hunter-container"><div class="hunter-header"><span>' ..
     escapeHtml(boardName) ..
     '</span><div class="hunter-top-links"><span onclick="void(0);">헌터넷 정보</span> | <span onclick="void(0);">설정</span> | <span onclick="void(0);">퀘스트 게시판</span> | <span onclick="void(0);">프로필</span> | <span onclick="void(0);">길드 정보</span> | <span onclick="void(0);">새로고침</span></div></div><div class="hunter-options"><div class="tab-menu"><button class="tab-button active">전체글</button> <button class="tab-button">공지사항</button> <button class="tab-button">퀘스트</button></div><div class="hunter-actions"><select name="viewCount"><option value="30">30개</option><option value="50">50개</option><option value="100">100개</option></select><span onclick="void(0);" class="write-button"><i>📝</i> 글쓰기</span></div></div><div class="post-list-container"><div class="post-list-header"><div class="header-item col-num">번호</div> <div class="header-item col-title">제목</div> <div class="header-item col-writer">작성자</div> <div class="header-item col-date">등록일</div> <div class="header-item col-view">조회</div> <div class="header-item col-rank">추천</div></div><div class="post-list-body">'
-  )
+  }
 
   -- 게시글 루프
   if #posts > 0 then
@@ -180,8 +184,7 @@ local function render(block)
         local postDate = escapeHtml(post.date or "-")
         local postViews = escapeHtml(post.views or "-")
         local postRank = escapeHtml(post.upvotes or "-")
-        local postContent = escapeHtml(post.content or "")
-        postContent = postContent:gsub("\n", "<br>"):gsub("\\n", "<br>")
+        local postContent = escapeHtml(post.content or ""):gsub("\n", "<br>"):gsub("\\n", "<br>")
 
         local author = post.author or {}
         local writerName = author.name or "-"
@@ -315,11 +318,11 @@ local function render(block)
     table.insert(html, "<div style='padding: 20px; text-align: center; color: #888;'>표시할 게시글 없음</div>")
   end
 
-  -- Close the main structure
   table.insert(html, "</div></div></div>") -- post-list-body, post-list-container, hunter-container
-
-  -- details/summary 토글 종료
   table.insert(html, "</details>")
+  table.insert(html,
+    '<button class="lb-reroll" risu-btn="lb-reroll__lightboard-hn" type="button"><lb-reroll-icon /></button>')
+  table.insert(html, '</div>') -- module-root
 
   return table.concat(html, "\n")
 end
@@ -388,8 +391,7 @@ function extractFields(block)
 
   local contentMatch = block:match("Content:(.-)$")
   if contentMatch then
-    metadata["Content"] = contentMatch:gsub("^%s+", "")
-    block = block:gsub("Content:.*$", "")
+    metadata["Content"] = trim(contentMatch)
   end
 
   for part in block:gmatch("([^|]+)") do

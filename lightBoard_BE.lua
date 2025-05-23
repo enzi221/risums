@@ -143,45 +143,35 @@ local function removeTaggedContent(text, tagToKeep)
   return result
 end
 
---- Strips <Thoughts> block from CoT models.
+--- Strips a node block.
 --- @param text string
+--- @param tagName string
 --- @return string
-local function removeThoughts(text)
+local function removeNode(text, tagName)
   if not text then return "" end
 
-  -- Work on a lowercase copy to find tags case-insensitively
-  local lc = text:lower()
-  local sections = {}
-  local pos = 1
+  local escapedTagName = escapeForMatch(tagName)
+  local tagPattern = "<(" .. escapedTagName .. ")[^>]*>"
 
-  -- find <thought> or <thoughts> opening tags, possibly with attributes
-  while true do
-    local s, e, tag = lc:find("<(thoughts?)[^>]*>", pos)
-    if not s then break end
+  local s, e, actualTagName = text:find(tagPattern, 1)
 
-    local closePattern = "</" .. tag .. ">"
-    local closeStart, closeEnd = lc:find(closePattern, e + 1, true)
-    if closeStart then
-      -- record range [s … closeEnd] in original text
-      table.insert(sections, { start = s, finish = closeEnd })
-      pos = closeEnd + 1
-    else
-      pos = e + 1
-    end
-  end
-
-  if #sections == 0 then
+  if not s then
     return text
   end
 
-  -- remove in reverse order to keep indices valid
-  table.sort(sections, function(a, b) return a.start > b.start end)
-  local result = text
-  for _, sec in ipairs(sections) do
-    result = result:sub(1, sec.start - 1) .. result:sub(sec.finish + 1)
-  end
+  local closePattern = "</" .. actualTagName .. ">"
+  local closeStart, closeEnd = text:find(closePattern, e + 1, true)
 
-  return result
+  if closeStart then
+    local prefix = text:sub(1, s - 1)
+    local suffix = text:sub(closeEnd + 1)
+    if #prefix > 0 and prefix:sub(-1) == "\n" and #suffix > 0 and suffix:sub(1, 1) == "\n" then
+      suffix = suffix:sub(2)
+    end
+    return prefix .. suffix
+  else
+    return text
+  end
 end
 
 --- @param str string
@@ -433,13 +423,16 @@ local runManifestAsync = async(function(triggerId, manifest, fullChat)
   if response.success then
     local cleanOutput = response.result:gsub("```", "")
     cleanOutput = truncateRepeats(cleanOutput, 4)
-    cleanOutput = removeThoughts(cleanOutput)
+    cleanOutput = removeNode(cleanOutput, "Thoughts")
     return cleanOutput
   else
     print("[LightBoard] Failed to get LLM response for " .. manifest.identifier .. ":\n" .. response.result)
     alertError(triggerId,
       "[LightBoard] Failed to get LLM response for " .. manifest.identifier .. ":\n" .. response.result)
-    return ""
+    return '\n<lb-fallback><div class="lb-module-root" data-id="' .. manifest.identifier .. '">' ..
+        '<button class="lb-reroll" risu-btn="lb-reroll__' ..
+        manifest.identifier .. '" type="button"><lb-reroll-icon /></button>' ..
+        '</div></lb-fallback>'
   end
 end)
 
@@ -493,7 +486,6 @@ local main = async(function(triggerId)
           end
         end
       end
-      print("[LightBoard] Chunk " .. i .. "-" .. chunkEndIndex .. " processed.")
     end
   end
 
@@ -505,7 +497,7 @@ local main = async(function(triggerId)
     setChat(triggerId, -1,
       currentLastMessage ..
       "\n\n<!-- Platform managed do not generate -->\n" ..
-      table.concat(allProcessedResults, "\n\n") .. "\n<!-- End platform managed -->")
+      table.concat(allProcessedResults, "\n\n") .. "\n<!-- End platform managed -->\n")
     print("[LightBoard] All manifests processed. Results appended to chat.")
   else
     print("[LightBoard] All manifests processed. No new content to add.")
@@ -526,4 +518,84 @@ onOutput = async(function(triggerId)
     print("[LightBoard] Backend Error: " .. tostring(result))
     alertError(triggerId, "[LightBoard] Backend Error: " .. tostring(result))
   end
+end)
+
+--- @return boolean flagSet Was reroll flag set
+local function reroll(triggerId, identifier)
+  local mode = getGlobalVar(triggerId, "toggle_lightboard.mode") or "O"
+  if mode == "0" then
+    alertError(triggerId, "[LightBoard] 리롤 전에 백엔드의 모델을 활성화해주세요.")
+    return true
+  end
+
+  --- @diagnostic disable-next-line: param-type-mismatch
+  local manifests = getManifests(triggerId, mode)
+
+  -- find manifest by identifier
+  --- @type Manifest
+  local manifest = nil
+  for i = 1, #manifests do
+    if manifests[i].identifier == identifier then
+      manifest = manifests[i]
+      break
+    end
+  end
+
+  if not manifest then
+    alertError(triggerId, "[LightBoard] " .. identifier .. " 모듈을 찾을 수 없습니다. 모델 토글을 확인해주세요.")
+    return true
+  end
+
+  local fullChat = getFullChat(triggerId)
+  local lastCharChat = nil
+  local idx = -2
+  -- #fullChat -> <lb-rerolling>...</lb-rerolling>
+  for i = #fullChat - 1, math.max(#fullChat - 5, 1), -1 do
+    if fullChat[i].role == "char" then
+      lastCharChat = fullChat[i]
+      break
+    end
+    idx = idx - 1
+  end
+
+  if not lastCharChat then
+    alertError(triggerId, "[LightBoard] 리롤 불가 - 마지막 5개 로그에서 캐릭터 채팅을 찾을 수 없습니다.")
+    return true
+  end
+
+  local data = removeNode(lastCharChat.data, identifier)
+
+  -- force rerender
+  setChat(triggerId, idx, data)
+
+  local result = runManifestAsync(triggerId, manifest, fullChat):await()
+
+  data = data .. "\n" .. result .. "\n"
+
+  setChat(triggerId, idx, data)
+  return true
+end
+
+onButtonClick = async(function(triggerId, code)
+  local prefix = "lb%-reroll__"
+  local _, endIndex = string.find(code, prefix)
+  if not endIndex then
+    return false
+  end
+
+  local identifier = code:sub(endIndex + 1)
+  if identifier == "" then
+    return false
+  end
+
+  addChat(triggerId, 'char',
+    '<lb-rerolling><div class="lb-rerolling"><span class="lb-reroll-note"><span class="lb-reroller">' ..
+    identifier .. '</span> 재생성 중, 채팅을 보내거나 다른 모듈을 재생성하지 마세요...</span></div></lb-rerolling>')
+
+  local success, result = pcall(reroll, triggerId, identifier)
+  if not success then
+    alertError(triggerId, "[LightBoard] 캐릭터 고급 설정 > 저수준 접근을 활성화했나요? Button click failed: " .. tostring(result))
+  end
+
+  removeChat(triggerId, -1)
 end)

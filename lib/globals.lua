@@ -10,6 +10,11 @@ function listenEdit(type, callback) end
 function async(func) end
 
 --- @param triggerId string
+--- @param type 'char'|'user'
+--- @param msg string
+function addChat(triggerId, type, msg) end
+
+--- @param triggerId string
 --- @param msg string
 function alertError(triggerId, msg) end
 
@@ -17,3 +22,15 @@ function alertError(triggerId, msg) end
 --- @param varName string
 --- @return string?
 function getGlobalVar(triggerId, varName) end
+
+--- @generic T
+--- @param triggerId string
+--- @param varName string
+--- @return T
+function getState(triggerId, varName) end
+
+--- @param triggerId string
+--- @param varName string
+--- @param value any
+--- @return nil
+function setState(triggerId, varName, value) end

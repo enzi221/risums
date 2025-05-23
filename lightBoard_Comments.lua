@@ -13,6 +13,33 @@ local function trim(s)
   return s
 end
 
+---@param str string
+---@return string
+local function escapeHtml(str)
+  if not str then
+    return ""
+  end
+  str = string.gsub(str, "&", "&amp;")
+  str = string.gsub(str, "<", "&lt;")
+  str = string.gsub(str, ">", "&gt;")
+  return str
+end
+
+---@param tier string
+---@return string
+local function grantMedal(tier)
+  local medal = ""
+  if tier == "Gold" then
+    medal = "🥇"
+  elseif tier == "Silver" then
+    medal = "🥈"
+  elseif tier == "Bronze" then
+    medal = "🥉"
+  end
+
+  return medal
+end
+
 ---Extracts all `<lightboard-comments>` nodes.
 ---@param text string
 ---@return table[]
@@ -126,10 +153,11 @@ local function parseBlock(block, tagToEnd)
   return metadata
 end
 
----Renders a node into HTML.
----@param block table
----@return string
-local function render(block)
+--- Renders a node into HTML.
+--- @param triggerId string
+--- @param block table
+--- @return string
+local function render(triggerId, block)
   local rawContent = block.content
   if not rawContent or rawContent == "" then
     return "[LightBoard Error: Empty Content]"
@@ -184,13 +212,11 @@ local function render(block)
     table.insert(posts, currentPost)
   end
 
-  local html = {}
-
-  table.insert(
-    html,
-    '<details class="lb-module-root" name="lightboard-comment"><summary class="lb-opener"><span>댓글</span></summary>'
-  )
-  table.insert(html, '<div class="lb-comment-container">')
+  local html = {
+    '<div class="lb-module-root" data-id="lightboard-comment">',
+    '<details class="lb-collapsible" name="lightboard-comment"><summary class="lb-opener"><span>댓글</span></summary>',
+    '<div class="lb-comment-container">'
+  }
 
   -- 게시글 루프
   if #posts > 0 then
@@ -258,15 +284,18 @@ local function render(block)
     table.insert(html, "<div style='padding: 20px; text-align: center; color: #888;'>표시할 게시글 없음</div>")
   end
 
-  table.insert(html, "</div>") -- comment-module-container
-  table.insert(html, "</details>")
+  table.insert(html, "</div>")     -- comment-module-container
+  table.insert(html, "</details>") -- collapsible
+  table.insert(html,
+    '<button class="lb-reroll" risu-btn="lb-reroll__lightboard-comments" type="button"><lb-reroll-icon /></button>')
+  table.insert(html, "</div>") -- module-rerollable
 
   return table.concat(html, "")
 end
 
 listenEdit(
   "editDisplay",
-  function(_, data)
+  function(triggerId, data)
     if not data or data == "" then
       return ""
     end
@@ -288,7 +317,7 @@ listenEdit(
         if match.rangeStart > lastIndex then
           output = output .. data:sub(lastIndex, match.rangeStart - 1)
         end
-        local processSuccess, result = pcall(render, match)
+        local processSuccess, result = pcall(render, triggerId, match)
         if processSuccess then
           output = output .. result
         else
@@ -308,39 +337,3 @@ listenEdit(
     return output
   end
 )
-
----@param str string
----@return string
-function escapeHtml(str)
-  if not str then
-    return ""
-  end
-  str = string.gsub(str, "&", "&amp;")
-  str = string.gsub(str, "<", "&lt;")
-  str = string.gsub(str, ">", "&gt;")
-  return str
-end
-
----@param tier string
----@return string
-function grantMedal(tier)
-  local medal = ""
-  if tier == "Gold" then
-    medal = "🥇"
-  elseif tier == "Silver" then
-    medal = "🥈"
-  elseif tier == "Bronze" then
-    medal = "🥉"
-  end
-
-  return medal
-end
-
----@param s string
----@param i number
----@param j number
-function utf8sub(s, i, j)
-  i = utf8.offset(s, i)
-  j = utf8.offset(s, j + 1) - 1
-  return string.sub(s, i, j)
-end

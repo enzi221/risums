@@ -201,17 +201,18 @@ local function render(block)
     table.insert(postsData, currentPostData)
   end
 
-  local html = {}
   local boardTitle = escapeHtml(block.attributes.name or "미니보드")
-
-  table.insert(html, '<details class="lb-module-root lb-module-root-animated" name="lightboard-miniboard">')
-  table.insert(html, '  <summary class="lb-opener"><span>♦️미니보드</span></summary>')
-  table.insert(html, '  <div class="lb-mini-board-wrapper">')
-  table.insert(html, '    <div class="lb-mini-board-title">' .. boardTitle .. '</div>')
-  table.insert(html, '    <div class="lb-mini-posts-list">')
+  local html = {
+    '<div class="lb-module-root" data-id="lightboard-miniboard">',
+    '<details class="lb-collapsible lb-collapsible-animated" name="lightboard-miniboard">',
+    '  <summary class="lb-opener"><span>♦️미니보드</span></summary>',
+    '  <div class="lb-mini-board-wrapper">',
+    '    <div class="lb-mini-board-title">' .. boardTitle .. '</div>',
+    '    <div class="lb-mini-posts-list">'
+  }
 
   if #postsData > 0 then
-    for i, post in ipairs(postsData) do
+    for _, post in ipairs(postsData) do
       local postTitle = escapeHtml(post.title or "제목 없음")
       local postAuthor = escapeHtml(post.author or "익명")
       local postTime = escapeHtml(post.time or "시간 정보 없음")
@@ -230,10 +231,10 @@ local function render(block)
       table.insert(html, '              <span class="lb-mini-votes">')
       table.insert(html, '                <span class="lb-mini-summary-like">▲ ' .. postUpvotes .. '</span>')
       table.insert(html, '                <span class="lb-mini-summary-dislike">▼ ' .. postDownvotes .. '</span>')
-      table.insert(html, '              </span>') -- close lb-mini-votes
-      table.insert(html, '            </div>')    -- close lb-mini-post-summary-meta
-      table.insert(html, '          </div>')      -- close lb-mini-post-title-container
-      table.insert(html, '        </summary>')    -- close lb-mini-post-summary
+      table.insert(html, '              </span>') -- votes
+      table.insert(html, '            </div>')    -- post-summary-meta
+      table.insert(html, '          </div>')      -- post-title-container
+      table.insert(html, '        </summary>')    -- post-summary
 
       table.insert(html, '        <div class="lb-mini-post-content">')
       table.insert(html, '          <span class="lb-mini-post-body-text">' .. postContent .. '</span>')
@@ -250,23 +251,26 @@ local function render(block)
           table.insert(html, '              <div class="lb-mini-comment-meta">')
           table.insert(html, '                <span class="lb-mini-author">' .. commentAuthor .. '</span>')
           table.insert(html, '                <span class="lb-mini-time">(' .. commentTime .. ')</span>')
-          table.insert(html, '              </div>') -- close lb-mini-comment-meta
+          table.insert(html, '              </div>') -- comment-meta
           table.insert(html, '              <span class="lb-mini-comment-text">' .. commentContent .. '</span>')
-          table.insert(html, '            </div>')   -- close lb-mini-comment
+          table.insert(html, '            </div>')   -- comment
         end
-        table.insert(html, '          </div>')       -- close lb-mini-comments-section
+        table.insert(html, '          </div>')       -- comments-section
       end
 
-      table.insert(html, '        </div>')   -- close lb-mini-post-content
-      table.insert(html, '      </details>') -- close lb-mini-post
+      table.insert(html, '        </div>')   -- post-content
+      table.insert(html, '      </details>') -- post
     end
   else
     table.insert(html, "      <div style='padding: 20px; text-align: center; color: #888;'>표시할 게시글 없음</div>")
   end
 
-  table.insert(html, '    </div>') -- close lb-mini-posts-list
-  table.insert(html, '  </div>')   -- close lb-mini-board-wrapper
-  table.insert(html, '</details>') -- close lb-module-root
+  table.insert(html, '    </div>') -- posts-list
+  table.insert(html, '  </div>')   -- board-wrapper
+  table.insert(html, '</details>') -- collapsible
+  table.insert(html,
+    '<button class="lb-reroll" risu-btn="lb-reroll__lightboard-miniboard" type="button"><lb-reroll-icon /></button>')
+  table.insert(html, '</div>') -- module-root
 
   return table.concat(html, "\n")
 end
