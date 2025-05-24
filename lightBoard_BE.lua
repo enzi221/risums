@@ -200,7 +200,9 @@ end
 --- @field identifier string
 --- @field loreBooks boolean
 --- @field mode '1'|'2'
+--- @field multilingual boolean
 --- @field personaDesc boolean
+--- @field rerollBehavior 'preserve-prev'|'remove-prev'
 
 --- Retrieves active manifests.
 --- @param triggerId string
@@ -243,15 +245,19 @@ local function getManifests(triggerId, globalMode)
       end
       tbl.loreBooks = tbl.loreBooks == "true"
 
-      if not tbl.characterDesc then
-        tbl.characterDesc = getGlobalVar(triggerId, "toggle_" .. identifier .. ".characterDesc") == "1"
+      if not tbl.multilingual then
+        tbl.multilingual = true
       end
-      tbl.characterDesc = tbl.characterDesc == "true"
+      tbl.multilingual = tbl.multilingual == "true"
 
       if not tbl.personaDesc then
         tbl.personaDesc = getGlobalVar(triggerId, "toggle_" .. identifier .. ".personaDesc") == "1"
       end
       tbl.personaDesc = tbl.personaDesc == "true"
+
+      if not tbl.rerollBehavior then
+        tbl.rerollBehavior = "preserve-prev"
+      end
 
       local mode = getGlobalVar(triggerId, "toggle_" .. identifier .. ".mode")
       if mode == "0" then
@@ -286,7 +292,7 @@ local function makePrompt(triggerId, manifest, log)
   -- Thoughts schema
   local thoughtsFormatExternal = nil
   local thoughtsFlag = getGlobalVar(triggerId, "toggle_lightboard.thoughts") or "0"
-  if thoughtsFlag == "0" then
+  if thoughtsFlag ~= "1" then
     thoughtsFormatExternal = getLoreBooks(triggerId, identifier .. ".lb.thoughts")[1]
   end
   local thoughtsFormat = (thoughtsFormatExternal and thoughtsFormatExternal.content) or nil
@@ -303,6 +309,10 @@ local function makePrompt(triggerId, manifest, log)
   local beforeUniverseExternal = getLoreBooks(triggerId, identifier .. ".lb.universe")[1]
   local beforeUniverse = (beforeUniverseExternal and beforeUniverseExternal.content) or BEFORE_UNIVERSE
 
+  -- Optional prefill
+  local prefillExternal = getLoreBooks(triggerId, identifier .. ".lb.prefill")[1]
+  local prefill = (prefillExternal and prefillExternal.content) or ""
+
   local personaName = getPersonaName(triggerId)
   local personaDesc = ""
   if manifest.personaDesc then
@@ -316,7 +326,7 @@ local function makePrompt(triggerId, manifest, log)
   end
 
   local language = getGlobalVar(triggerId, "toggle_lightboard.language")
-  if not language or language == "" then
+  if not language or language == "" or not manifest.multilingual then
     language = ""
   elseif language == "0" then
     language = "각 필드의 값은 한국어로 출력하세요."
@@ -335,7 +345,7 @@ local function makePrompt(triggerId, manifest, log)
     dataFormat,
     guideline, language)
 
-  local systemPromptTokens = getTokens(triggerId, intro .. outro):await()
+  local systemPromptTokens = getTokens(triggerId, intro .. outro .. prefill):await()
 
   local reserve = systemPromptTokens + CHAT_TOKENS_RESERVE
 
@@ -370,7 +380,7 @@ local function makePrompt(triggerId, manifest, log)
   local logsToAdd = {}
 
   local userChatsAllowed = getGlobalVar(triggerId, "toggle_lightboard.noUser") ~= "1"
-  local maxLogs = tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxLogs")) or 4
+  local maxLogs = math.max(1, tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxLogs")) or 4)
 
   for i = #log, 1, -1 do
     if #logsToAdd >= maxLogs then
@@ -406,6 +416,13 @@ local function makePrompt(triggerId, manifest, log)
     role = "user",
   }
 
+  if prefill and prefill ~= "" then
+    prompt[#prompt + 1] = {
+      content = prefill,
+      role = "char",
+    }
+  end
+
   return prompt
 end
 
@@ -424,6 +441,12 @@ local runManifestAsync = async(function(triggerId, manifest, fullChat)
     local cleanOutput = response.result:gsub("```", "")
     cleanOutput = truncateRepeats(cleanOutput, 4)
     cleanOutput = removeNode(cleanOutput, "Thoughts")
+
+    local shouldRemoveThoughts = getGlobalVar(triggerId, "toggle_lightboard.thoughts") == "0"
+    if shouldRemoveThoughts then
+      cleanOutput = removeNode(cleanOutput, "lb-process")
+    end
+
     return cleanOutput
   else
     print("[LightBoard] Failed to get LLM response for " .. manifest.identifier .. ":\n" .. response.result)
@@ -520,12 +543,11 @@ onOutput = async(function(triggerId)
   end
 end)
 
---- @return boolean flagSet Was reroll flag set
 local function reroll(triggerId, identifier)
   local mode = getGlobalVar(triggerId, "toggle_lightboard.mode") or "O"
   if mode == "0" then
     alertError(triggerId, "[LightBoard] 리롤 전에 백엔드의 모델을 활성화해주세요.")
-    return true
+    return
   end
 
   --- @diagnostic disable-next-line: param-type-mismatch
@@ -542,8 +564,8 @@ local function reroll(triggerId, identifier)
   end
 
   if not manifest then
-    alertError(triggerId, "[LightBoard] " .. identifier .. " 모듈을 찾을 수 없습니다. 모델 토글을 확인해주세요.")
-    return true
+    alertError(triggerId, "[LightBoard] " .. identifier .. " 모듈을 찾을 수 없습니다. 프론트엔드의 모드 토글이 설정돼있나요?")
+    return
   end
 
   local fullChat = getFullChat(triggerId)
@@ -560,20 +582,34 @@ local function reroll(triggerId, identifier)
 
   if not lastCharChat then
     alertError(triggerId, "[LightBoard] 리롤 불가 - 마지막 5개 로그에서 캐릭터 채팅을 찾을 수 없습니다.")
-    return true
+    return
   end
 
-  local data = removeNode(lastCharChat.data, identifier)
+  local lastChatFull = lastCharChat.data
+  local lastChatNoNode = removeNode(lastChatFull, identifier)
+
+  if manifest.rerollBehavior == "remove-prev" then
+    -- modify fullChat in-place
+    lastCharChat.data = lastChatNoNode
+  end
 
   -- force rerender
-  setChat(triggerId, idx, data)
+  setChat(triggerId, idx, lastChatNoNode)
 
-  local result = runManifestAsync(triggerId, manifest, fullChat):await()
+  local promise = runManifestAsync(triggerId, manifest, fullChat)
+  local success, result = pcall(function()
+    return promise:await()
+  end)
 
-  data = data .. "\n" .. result .. "\n"
+  if not success then
+    setChat(triggerId, idx, lastChatFull)
+    alertError(triggerId, "[LightBoard] 리롤 실패. 캐릭터 고급 설정 > 저수준 접근을 활성화했나요? Failed at reroll: " .. tostring(result))
+    return
+  end
 
-  setChat(triggerId, idx, data)
-  return true
+  local finalChat = lastChatNoNode .. "\n" .. result .. "\n"
+
+  setChat(triggerId, idx, finalChat)
 end
 
 onButtonClick = async(function(triggerId, code)
@@ -594,7 +630,7 @@ onButtonClick = async(function(triggerId, code)
 
   local success, result = pcall(reroll, triggerId, identifier)
   if not success then
-    alertError(triggerId, "[LightBoard] 캐릭터 고급 설정 > 저수준 접근을 활성화했나요? Button click failed: " .. tostring(result))
+    alertError(triggerId, "[LightBoard] Failed at onButtonClick: " .. tostring(result))
   end
 
   removeChat(triggerId, -1)
