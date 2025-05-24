@@ -159,9 +159,17 @@ local function escapeQuotes(str)
   if not str then
     return ""
   end
-  str = string.gsub(str, '"', "&quot;")
-  str = string.gsub(str, "'", "&#39;")
-  return str
+  local result = {}
+  for character in str:gmatch("([%z\1-\127\194-\244][\128-\191]*)") do
+    if character == '"' or character == "“" or character == "”" then
+      table.insert(result, "&#34;")
+    elseif character == "'" or character == "‘" or character == "’" then
+      table.insert(result, "&#39;")
+    else
+      table.insert(result, character)
+    end
+  end
+  return table.concat(result)
 end
 
 ---Renders a node into HTML.
@@ -287,7 +295,6 @@ local function onButton(triggerId, code)
   local body = code:sub(endIndex + 1)
 
   addChat(triggerId, "user", body)
-  print("done")
 end
 
 onButtonClick = async(function(triggerId, code)
