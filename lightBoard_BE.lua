@@ -246,7 +246,7 @@ local function getManifests(triggerId, globalMode)
       tbl.loreBooks = tbl.loreBooks == "true"
 
       if not tbl.multilingual then
-        tbl.multilingual = true
+        tbl.multilingual = "true"
       end
       tbl.multilingual = tbl.multilingual == "true"
 
@@ -334,6 +334,8 @@ local function makePrompt(triggerId, manifest, log)
     language = "Output each field value in English."
   elseif language == "2" then
     language = "各フィールドの値を日本語で出力してください。"
+  elseif language == "3" then
+    language = "Output each field value in dominant language of chat log."
   end
 
   local intro = SYSTEM_INST:format(
@@ -363,7 +365,7 @@ local function makePrompt(triggerId, manifest, log)
 
   for i = 1, #loreBooks do
     prompt[#prompt + 1] = {
-      content = removeTaggedContent(loreBooks[i].content, identifier),
+      content = removeTaggedContent(loreBooks[i].data, identifier),
       role = "user",
     }
   end

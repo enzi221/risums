@@ -8,16 +8,19 @@
 --- @field key string
 --- @field priority number
 --- @field secondKey string
-loreBook = {}
 
 --- @param triggerId string
 --- @param search string
 --- @return LoreBook[]
 function getLoreBooks(triggerId, search) end
 
+--- @class LoreBookLoaded
+--- @field data string
+--- @field role 'char'|'system'|'user'
+
 --- @param triggerId string
 --- @param reserve number
---- @return LoreBook[]
+--- @return LoreBookLoaded[]
 function loadLoreBooks(triggerId, reserve) end
 
 --- @param triggerId string
