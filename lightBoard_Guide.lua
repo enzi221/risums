@@ -3,158 +3,20 @@
 
 --- LightBoard Guide
 
---- @param s string
+local triggerId = ''
+
+local function setTriggerId(tid)
+  triggerId = tid
+  if type(prelude) ~= "nil" then return end
+  local source = getLoreBooks(triggerId, 'lightboard-prelude')
+  if not source or #source == 0 then
+    error('Failed to load lightboard-prelude.')
+  end
+  load(source[1].content, '@prelude', 't')()
+end
+
+--- @param str string
 --- @return string
-local function trim(s)
-  -- Remove leading whitespace (%s* at the start ^)
-  s = string.gsub(s, "^%s*", "")
-  -- Remove trailing whitespace (%s* at the end $)
-  s = string.gsub(s, "%s*$", "")
-  return s
-end
-
----Extracts all nodes.
----@param text string
----@return table[]
-local function extractAllNodes(tagNameRaw, text)
-  local results = {}
-  local i = 1
-
-  local tagName = tagNameRaw:gsub("(%W)", "%%%1")
-
-  while true do
-    local startIdx = text:find("<" .. tagName, i)
-    if not startIdx then
-      break
-    end
-
-    -- Find where the opening tag ends
-    local tagEnd = text:find(">", startIdx)
-    if not tagEnd then
-      i = startIdx + 1
-      goto continue
-    end
-
-    -- Extract all attributes from the opening tag
-    local openTagContent = text:sub(
-      startIdx + #("<" .. tagNameRaw),
-      tagEnd - 1
-    )
-    local attrs = {}
-
-    -- quoted attributes: key="val" or key='val'
-    for key, quote, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*(['\"])(.-)%2") do
-      attrs[key] = val
-    end
-
-    -- unquoted attributes: key=val
-    for key, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*([^%s\"'>]+)") do
-      if not attrs[key] then attrs[key] = val end
-    end
-
-    -- Find closing tag
-    local closeStart, _ = text:find("</" .. tagName .. ">", tagEnd)
-    if not closeStart then
-      i = tagEnd + 1
-      goto continue
-    end
-    local closeEnd = closeStart + #("</" .. tagNameRaw .. ">") - 1
-
-    -- Extract inner content
-    local contentOnly = text:sub(tagEnd + 1, closeStart - 1)
-
-    table.insert(results, {
-      content    = contentOnly,
-      attributes = attrs,
-      rangeStart = startIdx,
-      rangeEnd   = closeEnd
-    })
-
-    i = closeEnd + 1
-    ::continue::
-  end
-
-  return results
-end
-
----Extracts contents between all [Tag] ... [Tag].
----@param tag string
----@param content string
----@return string[]
-local function extractBlocks(tag, content)
-  local results = {}
-  local openTag = "[" .. tag .. "]"
-  local pos = 1
-
-  while true do
-    local s, e = content:find(openTag, pos, true)
-    if not s then break end
-
-    -- find next occurrence of the same tag
-    local nextS = content:find(openTag, e + 1, true)
-    if nextS then
-      table.insert(results, content:sub(e + 1, nextS - 1))
-      pos = nextS
-    else
-      -- last segment
-      table.insert(results, content:sub(e + 1))
-      break
-    end
-  end
-
-  return results
-end
-
----Parses a block into a proper table.
----@param block string
----@param tagToEnd string[]?
----@return table
-local function parseBlock(block, tagToEnd)
-  local metadata = {}
-
-  if type(tagToEnd) == "table" then
-    for _, tag in ipairs(tagToEnd) do
-      if tag and tag ~= "" then
-        local currentPattern = "%[" .. tag:gsub("(%W)", "%%%1") .. "%]"
-        local tagStartMatch = block:find(currentPattern)
-        if tagStartMatch then
-          block = block:sub(1, tagStartMatch - 1)
-          break
-        end
-      end
-    end
-  end
-
-  local contentMatch = block:match("Content:(.-)$")
-  if contentMatch then
-    metadata["Content"] = trim(contentMatch)
-    block = block:gsub("Content:.*$", "")
-  end
-
-  for part in block:gmatch("([^|]+)") do
-    local field, value = part:match("([^:]+):(.+)")
-    if field and value then
-      field = trim(field)
-      value = trim(value)
-      metadata[field] = value
-    end
-  end
-
-  return metadata
-end
-
----@param str string
----@return string
-local function escapeHtml(str)
-  if not str then
-    return ""
-  end
-  str = string.gsub(str, "&", "&amp;")
-  str = string.gsub(str, "<", "&lt;")
-  str = string.gsub(str, ">", "&gt;")
-  return str
-end
-
 local function escapeQuotes(str)
   if not str then
     return ""
@@ -181,80 +43,94 @@ local function render(block)
     return "[LightBoard Error: Empty Content]"
   end
 
-  -- Extract Review
-  local reviewBlockStrings = extractBlocks("Review", rawContent)
+  local reviewBlockStrings = prelude.extractBlocks("Review", rawContent)
   if not reviewBlockStrings or #reviewBlockStrings == 0 then
-    -- If no [Review] block, maybe it's not for this component or malformed
-    -- For now, let's return an empty string or an error message
     return "[LightBoard Guide: Missing Review block]"
   end
-  local reviewData = parseBlock(reviewBlockStrings[1], { "Direction" })
+  local reviewData = prelude.parseBlock(reviewBlockStrings[1], { "Direction" })
 
-  -- Extract Directions
-  local directionBlockStrings = extractBlocks("Direction", rawContent)
+  if not reviewData.Score or not reviewData.Content then
+    return ''
+  end
+
+  local directionBlockStrings = prelude.extractBlocks("Direction", rawContent)
   local directionsData = {}
   for _, dirBlockString in ipairs(directionBlockStrings) do
-    table.insert(directionsData, parseBlock(dirBlockString))
+    table.insert(directionsData, prelude.parseBlock(dirBlockString))
   end
 
-  local html = {
-    '<div class="lb-module-root" data-id="lightboard-guide">',
-    '<details class="lb-collapsible lb-collapsible-animated" name="lightboard-guide"><summary class="lb-opener"><span>가이드</span></summary>'
-  }
 
-  table.insert(html, '<div class="lb-guide-component-container">')
+  local directionsRow_e = nil
 
-  -- Render Review Card
-  if reviewData.Score and reviewData.Content then
-    table.insert(html, '  <div class="lb-guide-review-card lb-guide-card">')
-    table.insert(html, '    <span class="lb-guide-content">' .. escapeHtml(reviewData.Content) .. '</span>')
-    table.insert(html, '    <div class="lb-guide-score-container">')
-    table.insert(html, '      <div class="lb-guide-score-label">Confidence Score ' .. reviewData.Score .. '/5</div>')
-    table.insert(html, '      <div class="lb-guide-score" data-value="' .. reviewData.Score .. '"></div>')
-    table.insert(html, '    </div>')
-    table.insert(html, '  </div>')
-  end
-
-  -- Render Directions Row
   if #directionsData > 0 then
-    table.insert(html, '  <div class="lb-guide-directions-row">')
     local gradientClasses = { "lb-guide-gradient-1", "lb-guide-gradient-2", "lb-guide-gradient-3" }
+
+    local directions_es = {}
     for i, dirData in ipairs(directionsData) do
       local gradientClass = gradientClasses[((i - 1) % #gradientClasses) + 1] -- Cycle through gradients
-      table.insert(html,
-        '    <button class="lb-guide-direction-card lb-guide-card" type="button" risu-btn="lb-guide__' ..
-        escapeQuotes(escapeHtml(dirData.Content or "")) .. '">')
-      table.insert(html, '      <div class="lb-guide-direction-keyword-header ' ..
-        gradientClass .. '">' .. escapeHtml(dirData.Keywords or "Keywords") .. '</div>')
-      table.insert(html, '      <div class="lb-guide-direction-card-body">')
-      table.insert(html, '        <span class="lb-guide-outcome">' .. escapeHtml(dirData.Outcome or "") .. '</span>')
-      table.insert(html, '        <span class="lb-guide-content">' .. escapeHtml(dirData.Content or "") .. '</span>')
-      table.insert(html, '        <span class="lb-guide-why">' .. escapeHtml(dirData.Why or "") .. '</span>')
-      table.insert(html, '        <span class="lb-guide-direction-score">' .. (dirData.Score or "?") .. '/5</span>')
-      table.insert(html, '      </div>')
-      table.insert(html, '    </button>')
+
+      table.insert(directions_es, h.button['lb-guide-direction-card lb-guide-card'] {
+        type = "button",
+        risu_btn = "lb-guide__" .. escapeQuotes(dirData.Content or ""),
+        h.div['lb-guide-direction-keyword-header ' .. gradientClass] {
+          dirData.Keywords or "Keywords"
+        },
+        h.div['lb-guide-direction-card-body'] {
+          h.span['lb-guide-outcome'] { dirData.Outcome or "" },
+          h.span['lb-guide-content'] { dirData.Content or "" },
+          h.span['lb-guide-why'] { dirData.Why or "" },
+          h.span['lb-guide-direction-score'] { (dirData.Score or '?') .. '/5' }
+        }
+
+      })
     end
-    table.insert(html, '  </div>') -- guide-directions-row
+
+    directionsRow_e = h.div['lb-guide-directions-row'] {
+      directions_es
+    }
   end
 
-  table.insert(html, '</div>')     -- guide-component-container
-  table.insert(html, '</details>') -- collapsible
-  table.insert(html,
-    '<button class="lb-reroll" risu-btn="lb-reroll__lightboard-guide" type="button"><lb-reroll-icon /></button>')
-  table.insert(html, "</div>") -- module-rerollable
+  local html = h.div['lb-module-root'] {
+    data_id = "lightboard-guide",
+    h.details['lb-collapsible lb-collapsible-animated'] {
+      name = "lightboard-guide",
+      h.summary['lb-opener'] {
+        h.span "가이드",
+      },
+      h.div['lb-guide-component-container'] {
+        h.div['lb-guide-review-card lb-guide-card'] {
+          h.span['lb-guide-content'] { reviewData.Content },
+          h.div['lb-guide-score-container'] {
+            h.div['lb-guide-score-label'] { "Confidence Score " .. reviewData.Score .. "/5" },
+            h.div['lb-guide-score'] {
+              data_value = reviewData.Score or 0
+            }
+          }
+        },
+        directionsRow_e,
+      }
+    },
+    h.button['lb-reroll'] {
+      risu_btn = "lb-reroll__lightboard-guide",
+      type = "button",
+      h.lb_reroll_icon { closed = true }
+    }
+  }
 
-  return table.concat(html, "\n")
+  return tostring(html)
 end
 
-local function main(_, data)
+local function main(tid, data)
   if not data or data == "" then
     return ""
   end
 
+  setTriggerId(tid)
+
   local output = ""
   local lastIndex = 1
 
-  local success, extractionResult = pcall(extractAllNodes, "lightboard-guide", data)
+  local success, extractionResult = pcall(prelude.extractNodes, "lightboard-guide", data)
   if success then
   else
     print("[LightBoard] Guide extraction failed:", tostring(extractionResult))
@@ -286,19 +162,20 @@ local function main(_, data)
   return output
 end
 
-local function onButton(triggerId, code)
+local function onButton(tid, code)
   local prefix = "lb%-guide__"
   local _, endIndex = string.find(code, prefix)
   if not endIndex then
     return
   end
-  local body = code:sub(endIndex + 1)
 
-  addChat(triggerId, "user", body)
+  setTriggerId(tid)
+  local body = code:sub(endIndex + 1)
+  addChat(tid, "user", body)
 end
 
-onButtonClick = async(function(triggerId, code)
-  local success, result = pcall(onButton, triggerId, code)
+onButtonClick = async(function(tid, code)
+  local success, result = pcall(onButton, tid, code)
   if not success then
     print("[LightBoard] Guide button click failed:", tostring(result))
   end
@@ -307,8 +184,8 @@ end)
 
 listenEdit(
   "editDisplay",
-  function(triggerId, data)
-    local success, result = pcall(main, triggerId, data)
+  function(tid, data)
+    local success, result = pcall(main, tid, data)
     if success then
       return result
     else

@@ -34,3 +34,6 @@ function getState(triggerId, varName) end
 --- @param value any
 --- @return nil
 function setState(triggerId, varName, value) end
+
+--- @param triggerId string
+function stopChat(triggerId) end

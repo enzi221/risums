@@ -3,156 +3,16 @@
 
 --- LightBoard Miniboard
 
---- @param s string
---- @return string
-local function trim(s)
-  -- Remove leading whitespace (%s* at the start ^)
-  s = string.gsub(s, "^%s*", "")
-  -- Remove trailing whitespace (%s* at the end $)
-  s = string.gsub(s, "%s*$", "")
-  return s
-end
+local triggerId = ''
 
----Extracts all nodes.
----@param text string
----@return table[]
-local function extractAllNodes(tagNameRaw, text)
-  local results = {}
-  local i = 1
-
-  local tagName = tagNameRaw:gsub("(%W)", "%%%1")
-
-  while true do
-    local startIdx = text:find("<" .. tagName, i)
-    if not startIdx then
-      break
-    end
-
-    -- Find where the opening tag ends
-    local tagEnd = text:find(">", startIdx)
-    if not tagEnd then
-      i = startIdx + 1
-      goto continue
-    end
-
-    -- Extract all attributes from the opening tag
-    local openTagContent = text:sub(
-      startIdx + #("<" .. tagNameRaw),
-      tagEnd - 1
-    )
-    local attrs = {}
-
-    -- quoted attributes: key="val" or key='val'
-    for key, quote, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*(['\"])(.-)%2") do
-      attrs[key] = val
-    end
-
-    -- unquoted attributes: key=val
-    for key, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*([^%s\"'>]+)") do
-      if not attrs[key] then attrs[key] = val end
-    end
-
-    -- Find closing tag
-    local closeStart, _ = text:find("</" .. tagName .. ">", tagEnd)
-    if not closeStart then
-      i = tagEnd + 1
-      goto continue
-    end
-    local closeEnd = closeStart + #("</" .. tagNameRaw .. ">") - 1
-
-    -- Extract inner content
-    local contentOnly = text:sub(tagEnd + 1, closeStart - 1)
-
-    table.insert(results, {
-      content    = contentOnly,
-      attributes = attrs,
-      rangeStart = startIdx,
-      rangeEnd   = closeEnd
-    })
-
-    i = closeEnd + 1
-    ::continue::
+local function setTriggerId(tid)
+  triggerId = tid
+  if type(prelude) ~= "nil" then return end
+  local source = getLoreBooks(triggerId, 'lightboard-prelude')
+  if not source or #source == 0 then
+    error('Failed to load lightboard-prelude.')
   end
-
-  return results
-end
-
----Extracts contents between all [Tag] ... [Tag].
----@param tag string
----@param content string
----@return string[]
-local function extractBlocks(tag, content)
-  local results = {}
-  local openTag = "[" .. tag .. "]"
-  local pos = 1
-
-  while true do
-    local s, e = content:find(openTag, pos, true)
-    if not s then break end
-
-    -- find next occurrence of the same tag
-    local nextS = content:find(openTag, e + 1, true)
-    if nextS then
-      table.insert(results, content:sub(e + 1, nextS - 1))
-      pos = nextS
-    else
-      -- last segment
-      table.insert(results, content:sub(e + 1))
-      break
-    end
-  end
-
-  return results
-end
-
----Parses a block into a proper table.
----@param block string
----@param tagToEnd string[]?
----@return table
-local function parseBlock(block, tagToEnd)
-  local metadata = {}
-
-  if type(tagToEnd) == "table" then
-    for _, tag in ipairs(tagToEnd) do
-      if tag and tag ~= "" then
-        local currentPattern = "%[" .. tag:gsub("(%W)", "%%%1") .. "%]"
-        local tagStartMatch = block:find(currentPattern)
-        if tagStartMatch then
-          block = block:sub(1, tagStartMatch - 1)
-          break
-        end
-      end
-    end
-  end
-
-  local contentMatch = block:match("Content:(.-)$")
-  if contentMatch then
-    metadata["Content"] = trim(contentMatch)
-    block = block:gsub("Content:.*$", "")
-  end
-
-  for part in block:gmatch("([^|]+)") do
-    local field, value = part:match("([^:]+):(.+)")
-    if field and value then
-      field = trim(field)
-      value = trim(value)
-      metadata[field] = value
-    end
-  end
-
-  return metadata
-end
-
----@param str string
----@return string
-local function escapeHtml(str)
-  if not str then
-    return ""
-  end
-  str = string.gsub(str, "&", "&amp;")
-  str = string.gsub(str, "<", "&lt;")
-  str = string.gsub(str, ">", "&gt;")
-  return str
+  load(source[1].content, '@prelude', 't')()
 end
 
 ---Renders a node into HTML.
@@ -164,118 +24,167 @@ local function render(block)
     return "[LightBoard Error: Empty Content]"
   end
 
-  local postsData = {} -- Renamed from 'posts' to avoid confusion
-  local currentPostData = nil
+  ---@class MiniboardCommentData
+  ---@field Author string
+  ---@field Content string
+  ---@field Time string
 
-  for _, postText in ipairs(extractBlocks("Post", rawContent)) do
-    local postBlock = postText:match("(.-)%[Comment%]")
-    if not postBlock then
-      -- No postBlock = no [Comment]
-      postBlock = postText
-    end
+  ---@class MiniboardPostData
+  ---@field Author string
+  ---@field Comments MiniboardCommentData[]
+  ---@field Content string
+  ---@field Time string
+  ---@field Title string
+  ---@field Downvotes string
+  ---@field Upvotes string
 
-    local metadata = parseBlock(postBlock, { "Post", "Comment" })
-    currentPostData = {
-      author = metadata["Author"],
-      comments = {},
-      content = metadata["Content"],
-      time = metadata["Time"],
-      title = metadata["Title"],
-      downvotes = metadata["Downvotes"] or 0,
-      upvotes = metadata["Upvotes"] or 0,
-    }
+  ---@type MiniboardPostData[]
+  local posts = {}
 
-    for _, commentBlockText in ipairs(extractBlocks("Comment", postText)) do
-      local commentMetadata = parseBlock(commentBlockText)
-      local comment = {
-        author = commentMetadata["Author"],
-        content = commentMetadata["Content"],
-        time = commentMetadata["Time"],
-      }
+  for _, postBlock in ipairs(prelude.extractBlocks("Post", rawContent)) do
+    ---@class MiniboardPostData
+    local postData = prelude.parseBlock(postBlock, { "Post", "Comment" })
+    postData.Author = postData.Author or "익명"
+    postData.Comments = {}
 
-      if comment.author or comment.content then
-        table.insert(currentPostData.comments, comment)
+    for _, commentBlock in ipairs(prelude.extractBlocks("Comment", postBlock)) do
+      ---@type CommentsCommentData
+      local commentData = prelude.parseBlock(commentBlock)
+      commentData.Author = commentData.Author or "익명"
+
+      if commentData.Author or commentData.Content then
+        table.insert(postData.Comments, commentData)
       end
     end
 
-    table.insert(postsData, currentPostData)
+    table.insert(posts, postData)
   end
 
-  local boardTitle = escapeHtml(block.attributes.name or "미니보드")
-  local html = {
-    '<div class="lb-module-root" data-id="lightboard-miniboard">',
-    '<details class="lb-collapsible lb-collapsible-animated" name="lightboard-miniboard">',
-    '  <summary class="lb-opener"><span>♦️미니보드</span></summary>',
-    '  <div class="lb-mini-board-wrapper">',
-    '    <div class="lb-mini-board-title">' .. boardTitle .. '</div>',
-    '    <div class="lb-mini-posts-list">'
-  }
+  local post_es = {}
 
-  if #postsData > 0 then
-    for _, post in ipairs(postsData) do
-      local postTitle = escapeHtml(post.title or "제목 없음")
-      local postAuthor = escapeHtml(post.author or "익명")
-      local postTime = escapeHtml(post.time or "시간 정보 없음")
-      -- Ensure upvotes and downvotes are numbers
-      local postUpvotes = tonumber(post.upvotes) or 0
-      local postDownvotes = tonumber(post.downvotes) or 0
-      local postContent = escapeHtml(post.content or ""):gsub("\n", "<br>"):gsub("\\n", "<br>")
+  if #posts > 0 then
+    for _, post in ipairs(posts) do
+      local postTitle = post.Title or "제목 없음"
+      local postTime = post.Time or "시간 정보 없음"
+      local postUpvotes = post.Upvotes or '1'
+      local postDownvotes = post.Downvotes or '1'
+      local postContent = post.Content or ""
 
-      table.insert(html, '      <details class="lb-mini-post" name="lightboard-miniboard-post">')
-      table.insert(html, '        <summary class="lb-mini-post-summary">')
-      table.insert(html, '          <div class="lb-mini-post-title-container">')
-      table.insert(html, '            <span class="lb-mini-post-title-text">' .. postTitle .. '</span>')
-      table.insert(html, '            <div class="lb-mini-post-summary-meta">')
-      table.insert(html, '              <span class="lb-mini-author">' .. postAuthor .. '</span>')
-      table.insert(html, '              <span class="lb-mini-time">' .. postTime .. '</span>')
-      table.insert(html, '              <span class="lb-mini-votes">')
-      table.insert(html, '                <span class="lb-mini-summary-like">▲ ' .. postUpvotes .. '</span>')
-      table.insert(html, '                <span class="lb-mini-summary-dislike">▼ ' .. postDownvotes .. '</span>')
-      table.insert(html, '              </span>') -- votes
-      table.insert(html, '            </div>')    -- post-summary-meta
-      table.insert(html, '          </div>')      -- post-title-container
-      table.insert(html, '        </summary>')    -- post-summary
+      local comment_es = {}
+      for _, comment in ipairs(post.Comments) do
+        local comment_e = h.div['lb-mini-comment'] {
+          h.div['lb-mini-comment-meta'] {
+            h.span['lb-mini-author'] {
+              comment.Author,
+            },
+            h.span['lb-mini-time'] {
+              "(" .. (comment.Time or "시간 정보 없음") .. ")"
+            }
+          },
+          h.p['lb-mini-comment-text'] {
+            comment.Content
+          }
+        }
 
-      table.insert(html, '        <div class="lb-mini-post-content">')
-      table.insert(html, '          <span class="lb-mini-post-body-text">' .. postContent .. '</span>')
-
-      if #post.comments > 0 then
-        table.insert(html, '          <div class="lb-mini-comments-section">')
-        table.insert(html, '            <div class="lb-mini-comments-title">댓글 (' .. #post.comments .. ')</div>')
-        for _, comment in ipairs(post.comments) do
-          local commentAuthor = escapeHtml(comment.author or "익명")
-          local commentTime = escapeHtml(comment.time or "시간 정보 없음")
-          local commentContent = escapeHtml(comment.content or ""):gsub("\n", "<br>"):gsub("\\n", "<br>")
-
-          table.insert(html, '            <div class="lb-mini-comment">')
-          table.insert(html, '              <div class="lb-mini-comment-meta">')
-          table.insert(html, '                <span class="lb-mini-author">' .. commentAuthor .. '</span>')
-          table.insert(html, '                <span class="lb-mini-time">(' .. commentTime .. ')</span>')
-          table.insert(html, '              </div>') -- comment-meta
-          table.insert(html, '              <span class="lb-mini-comment-text">' .. commentContent .. '</span>')
-          table.insert(html, '            </div>')   -- comment
-        end
-        table.insert(html, '          </div>')       -- comments-section
+        table.insert(comment_es, comment_e)
       end
 
-      table.insert(html, '        </div>')   -- post-content
-      table.insert(html, '      </details>') -- post
+      table.insert(post_es, h.details['lb-mini-post'] {
+        name = 'lightboard-miniboard-post',
+        h.summary['lb-mini-post-summary'] {
+          h.div['lb-mini-post-title-container'] {
+            h.span['lb-mini-post-title-text'] {
+              postTitle,
+            },
+            h.div['lb-mini-post-summary-meta'] {
+              h.span['lb-mini-author'] {
+                post.Author,
+              },
+              h.span['lb-mini-time'] {
+                postTime,
+              },
+              h.span['lb-mini-votes'] {
+                h.span['lb-mini-summary-like'] {
+                  "▲ " .. postUpvotes,
+                },
+                h.span['lb-mini-summary-dislike'] {
+                  "▼ " .. postDownvotes,
+                },
+              },
+            },
+          },
+        },
+        h.div['lb-mini-post-content'] {
+          h.p['lb-mini-post-body-text'] {
+            postContent,
+          },
+          h.div['lb-mini-comments-section'] {
+            h.div['lb-mini-comments-section-header'] {
+              h.span['lb-mini-comments-title'] {
+                "댓글 (" .. #comment_es .. ")"
+              },
+              h.button['lb-mini-add-content'] {
+                risu_btn = "lb-interaction__lightboard-miniboard__AddComment/Title:" .. postTitle,
+                type = "button",
+                h.lb_comment_icon { closed = true },
+                "댓글 달기"
+              },
+            },
+            comment_es
+          },
+        },
+      })
     end
   else
-    table.insert(html, "      <div style='padding: 20px; text-align: center; color: #888;'>표시할 게시글 없음</div>")
+    post_es = h.div['lb-no-comments'] {
+      style = 'padding: 20px; text-align: center; color: #888;',
+      '표시할 게시글 없음',
+    }
   end
 
-  table.insert(html, '    </div>') -- posts-list
-  table.insert(html, '  </div>')   -- board-wrapper
-  table.insert(html, '</details>') -- collapsible
-  table.insert(html,
-    '<button class="lb-reroll" risu-btn="lb-reroll__lightboard-miniboard" type="button"><lb-reroll-icon /></button>')
-  table.insert(html, '</div>') -- module-root
+  local boardTitle = block.attributes.name or "미니보드"
+  local html = h.div['lb-module-root'] {
+    data_id = 'lightboard-miniboard',
+    h.details['lb-collapsible lb-collapsible-animated'] {
+      name = 'lightboard-miniboard',
+      h.summary['lb-opener'] {
+        h.span '♦️미니보드',
+      },
+      h.div['lb-mini-board-wrapper'] {
+        h.div['lb-mini-board-header'] {
+          h.div['lb-mini-board-title'] {
+            h.b {
+              boardTitle
+            },
+            h.button['lb-mini-browse-board'] {
+              risu_btn = "lb-interaction__lightboard-miniboard__ChangeBoard",
+              type = "button",
+              "게시판 둘러보기"
+            },
+          },
+          h.button['lb-mini-add-content'] {
+            risu_btn = "lb-interaction__lightboard-miniboard__AddPost",
+            type = "button",
+            h.lb_comment_icon { closed = true },
+            "게시글 쓰기"
+          },
+        },
+        h.div['lb-mini-posts-list'] {
+          post_es,
+        },
+      },
+    },
+    h.button['lb-reroll'] {
+      risu_btn = 'lb-reroll__lightboard-miniboard',
+      type = 'button',
+      h.lb_reroll_icon { closed = true }
+    },
+  }
 
-  return table.concat(html, "\n")
+  return tostring(html)
 end
 
-local function main(_, data)
+local function main(data)
   if not data or data == "" then
     return ""
   end
@@ -283,9 +192,8 @@ local function main(_, data)
   local output = ""
   local lastIndex = 1
 
-  local success, extractionResult = pcall(extractAllNodes, "lightboard-miniboard", data)
-  if success then
-  else
+  local extractionSuccess, extractionResult = pcall(prelude.extractNodes, 'lightboard-miniboard', data)
+  if not extractionSuccess then
     print("[LightBoard] Miniboard extraction failed:", tostring(extractionResult))
     return data
   end
@@ -295,11 +203,11 @@ local function main(_, data)
       if match.rangeStart > lastIndex then
         output = output .. data:sub(lastIndex, match.rangeStart - 1)
       end
-      local processSuccess, renderResult = pcall(render, match)
+      local processSuccess, processResult = pcall(render, match)
       if processSuccess then
-        output = output .. renderResult
+        output = output .. processResult
       else
-        print("[LightBoard] Miniboard parsing failed in block " .. i .. ":", tostring(renderResult))
+        print("[LightBoard] Miniboard parsing failed in block " .. i .. ":", tostring(processResult))
         output = output .. "\n\n<!-- LightBoard Block Error -->"
       end
       lastIndex = match.rangeEnd + 1
@@ -317,8 +225,10 @@ end
 
 listenEdit(
   "editDisplay",
-  function(triggerId, data)
-    local success, result = pcall(main, triggerId, data)
+  function(tid, data)
+    setTriggerId(tid)
+
+    local success, result = pcall(main, data)
     if success then
       return result
     else
