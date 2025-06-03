@@ -6,7 +6,6 @@
 --- @field content string
 --- @field insertorder number
 --- @field key string
---- @field priority number
 --- @field secondKey string
 
 --- @param triggerId string

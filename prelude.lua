@@ -159,6 +159,23 @@ local function extractNodes(tagNameRaw, text)
   return results
 end
 
+---Get a lore book with the highest insert order.
+---@param triggerId string
+---@param name string
+---@return LoreBook?
+local function getPriorityLoreBook(triggerId, name)
+  local books = getLoreBooks(triggerId, name)
+  if not books or #books == 0 then
+    return nil
+  end
+
+  table.sort(books, function(a, b)
+    return (a.insertorder or 0) > (b.insertorder or 0)
+  end)
+
+  return books[1]
+end
+
 ---Parses a block into a proper table.
 ---@param block string
 ---@param tagToEnd string[]?
@@ -227,6 +244,7 @@ _ENV.prelude = {
   escQuotes = escQuotes,
   extractBlocks = extractBlocks,
   extractNodes = extractNodes,
+  getPriorityLoreBook = getPriorityLoreBook,
   parseBlock = parseBlock,
   split = split,
   trim = trim

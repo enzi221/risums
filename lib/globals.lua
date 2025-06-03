@@ -19,6 +19,10 @@ function addChat(triggerId, type, msg) end
 function alertError(triggerId, msg) end
 
 --- @param triggerId string
+--- @return string
+function getAuthorsNote(triggerId) end
+
+--- @param triggerId string
 --- @param varName string
 --- @return string?
 function getGlobalVar(triggerId, varName) end

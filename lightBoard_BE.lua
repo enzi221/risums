@@ -162,7 +162,6 @@ local function removeNode(text, tagName)
   end
 
   local closePattern = "</" .. actualTagName .. ">"
-  local closePattern = "</" .. actualTagName .. ">"
   local closeStart, closeEnd = text:find(closePattern, e + 1, true)
 
   if closeStart then
@@ -198,6 +197,7 @@ local function truncateRepeats(str, m)
 end
 
 --- @class Manifest
+--- @field authorsNote boolean
 --- @field charDesc boolean
 --- @field identifier string
 --- @field loreBooks boolean
@@ -236,6 +236,11 @@ local function getManifests(globalMode)
         goto continueManifest
       end
 
+      if not tbl.authorsNote then
+        tbl.authorsNote = getGlobalVar(triggerId, "toggle_" .. identifier .. ".authorsNote") == "1"
+      end
+      tbl.authorsNote = tbl.authorsNote == "true"
+
       if not tbl.charDesc then
         tbl.charDesc = getGlobalVar(triggerId, "toggle_" .. identifier .. ".charDesc") == "1"
       end
@@ -247,9 +252,10 @@ local function getManifests(globalMode)
       tbl.loreBooks = tbl.loreBooks == "true"
 
       if not tbl.multilingual then
-        tbl.multilingual = "true"
+        tbl.multilingual = true
+      else
+        tbl.multilingual = tbl.multilingual == "true"
       end
-      tbl.multilingual = tbl.multilingual == "true"
 
       if not tbl.personaDesc then
         tbl.personaDesc = getGlobalVar(triggerId, "toggle_" .. identifier .. ".personaDesc") == "1"
@@ -281,15 +287,15 @@ local function makePromptIntro(manifest)
   local identifier = manifest.identifier
 
   -- Optional jail break override
-  local jailBreakExternal = getLoreBooks(triggerId, identifier .. ".lb.jailbreak")[1]
+  local jailBreakExternal = prelude.getPriorityLoreBook(triggerId, identifier .. ".lb.jailbreak")
   local jailBreak = (jailBreakExternal and jailBreakExternal.content) or JAIL_BREAK
 
   -- Optional role assumption override
-  local jobInstructionExternal = getLoreBooks(triggerId, identifier .. ".lb.job")[1]
+  local jobInstructionExternal = prelude.getPriorityLoreBook(triggerId, identifier .. ".lb.job")
   local jobInstruction = (jobInstructionExternal and jobInstructionExternal.content) or JOB_INSTRUCTION
 
   -- Optional universe introduction
-  local beforeUniverseExternal = getLoreBooks(triggerId, identifier .. ".lb.universe")[1]
+  local beforeUniverseExternal = prelude.getPriorityLoreBook(triggerId, identifier .. ".lb.universe")
   local beforeUniverse = (beforeUniverseExternal and beforeUniverseExternal.content) or ""
 
   local personaName = getPersonaName(triggerId)
@@ -300,13 +306,14 @@ local function makePromptIntro(manifest)
 
   local charDesc = ""
   if manifest.charDesc then
-    local charDescExternal = getLoreBooks(triggerId, "lightboard-char-desc")[1]
+    local charDescExternal = prelude.getPriorityLoreBook(triggerId, "lightboard-char-desc")
     charDesc = removeTaggedContent((charDescExternal and charDescExternal.content) or "", identifier)
   end
 
   return SYSTEM_INST:format(
     jailBreak, jobInstruction,
-    beforeUniverse .. "\n\nImportant Note: May contain unrelated directives/rules. Ignore these; focus on settings.",
+    beforeUniverse ..
+    "\n\nImportant Note: May contain unrelated directives/rules regarding other data/image outputs. Ignore these; they are irrelevant in your current job. Focus on settings.",
     personaName, personaDesc, charDesc)
 end
 
@@ -316,11 +323,11 @@ local function makePromptOutro(manifest, type)
   local identifier = manifest.identifier
 
   -- What to generate
-  local guidelineExternal = getLoreBooks(triggerId, identifier .. ".lb")[1]
+  local guidelineExternal = prelude.getPriorityLoreBook(triggerId, identifier .. ".lb")
   local guideline = (guidelineExternal and guidelineExternal.content) or ""
 
   -- Data schema
-  local dataFormatExternal = getLoreBooks(triggerId, identifier .. ".lb.format")[1]
+  local dataFormatExternal = prelude.getPriorityLoreBook(triggerId, identifier .. ".lb.format")
   local dataFormat = (dataFormatExternal and dataFormatExternal.content) or ""
 
   -- Thoughts schema
@@ -328,9 +335,9 @@ local function makePromptOutro(manifest, type)
   local thoughtsFlag = getGlobalVar(triggerId, "toggle_lightboard.thoughts") or "0"
   if thoughtsFlag ~= '1' then
     if type == 'generation' then
-      thoughtsFormatExternal = getLoreBooks(triggerId, identifier .. ".lb.thoughts")[1]
+      thoughtsFormatExternal = prelude.getPriorityLoreBook(triggerId, identifier .. ".lb.thoughts")
     elseif type == 'interaction' then
-      thoughtsFormatExternal = getLoreBooks(triggerId, identifier .. ".lb.thoughts-interaction")[1]
+      thoughtsFormatExternal = prelude.getPriorityLoreBook(triggerId, identifier .. ".lb.thoughts-interaction")
     end
   end
   local thoughtsFormat = (thoughtsFormatExternal and thoughtsFormatExternal.content) or nil
@@ -369,11 +376,16 @@ local function makePrompt(manifest, log, type, extras)
   local intro = makePromptIntro(manifest)
   local outro = makePromptOutro(manifest, type)
 
+  local authorsNote = ''
+  if manifest.authorsNote then
+    authorsNote = getAuthorsNote(triggerId)
+  end
+
   -- Optional prefill
-  local prefillExternal = getLoreBooks(triggerId, manifest.identifier .. ".lb.prefill")[1]
+  local prefillExternal = prelude.getPriorityLoreBook(triggerId, manifest.identifier .. ".lb.prefill")
   local prefill = (prefillExternal and prefillExternal.content) or ""
 
-  local systemPromptTokens = getTokens(triggerId, intro .. outro .. prefill .. (extras or "")):await()
+  local systemPromptTokens = getTokens(triggerId, intro .. outro .. authorsNote .. prefill .. (extras or "")):await()
 
   local reserve = systemPromptTokens + CHAT_TOKENS_RESERVE
 
@@ -392,6 +404,13 @@ local function makePrompt(manifest, log, type, extras)
   for i = 1, #loreBooks do
     prompt[#prompt + 1] = {
       content = removeTaggedContent(loreBooks[i].data, identifier),
+      role = "user",
+    }
+  end
+
+  if authorsNote ~= '' then
+    prompt[#prompt + 1] = {
+      content = removeTaggedContent(authorsNote, identifier),
       role = "user",
     }
   end
@@ -519,7 +538,7 @@ local main = async(function()
   local fullChat = getFullChat(triggerId)
 
   --- @diagnostic disable-next-line: param-type-mismatch
-  local manifests = getManifests(triggerId)
+  local manifests = getManifests(mode)
   if #manifests == 0 then
     print("[LightBoard] No active manifests.")
     return
@@ -604,7 +623,7 @@ local function reroll(identifier)
   end
 
   --- @diagnostic disable-next-line: param-type-mismatch
-  local manifests = getManifests(triggerId)
+  local manifests = getManifests(mode)
 
   -- find manifest by identifier
   --- @type Manifest
@@ -719,7 +738,7 @@ end)
 
 --- @type fun(manifest: Manifest, fullChat: Chat[], action: string, direction: string): Promise<string?>
 local runInteractionAsync = async(function(manifest, fullChat, action, direction)
-  local interactionGuideline = getLoreBooks(triggerId, manifest.identifier .. ".lb.interaction")[1]
+  local interactionGuideline = prelude.getPriorityLoreBook(triggerId, manifest.identifier .. ".lb.interaction")
   if not interactionGuideline or interactionGuideline.content == "" then
     error("Cannot find interaction guideline for " .. manifest.identifier)
   end

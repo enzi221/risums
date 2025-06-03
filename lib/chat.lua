@@ -11,6 +11,11 @@ function getFullChat(triggerId) end
 
 --- @param triggerId string
 --- @param index number
+--- @return Chat
+function getChat(triggerId, index) end
+
+--- @param triggerId string
+--- @param index number
 --- @param msg string
 --- @return nil
 function setChat(triggerId, index, msg) end
