@@ -95,9 +95,15 @@ local function extractBlocks(tag, content)
   return results
 end
 
+---@class Node
+---@field attributes table<string, string>
+---@field content string
+---@field rangeEnd number
+---@field rangeStart number
+
 ---Extracts all nodes.
 ---@param text string
----@return table[]
+---@return Node[]
 local function extractNodes(tagNameRaw, text)
   local results = {}
   local i = 1
@@ -146,10 +152,10 @@ local function extractNodes(tagNameRaw, text)
     local contentOnly = text:sub(tagEnd + 1, closeStart - 1)
 
     table.insert(results, {
-      content    = contentOnly,
       attributes = attrs,
+      content    = contentOnly,
+      rangeEnd   = closeEnd,
       rangeStart = startIdx,
-      rangeEnd   = closeEnd
     })
 
     i = closeEnd + 1
@@ -174,6 +180,40 @@ local function getPriorityLoreBook(triggerId, name)
   end)
 
   return books[1]
+end
+
+---Heals broken UTF-8 sequences in <0xXX> format.
+---@param str string
+---@return string
+local function killGuim(str)
+  local out, buf = {}, {}
+  local function flush()
+    if #buf > 0 then
+      local s = string.char(table.unpack(buf))
+      if utf8.len(s) then
+        out[#out + 1] = s
+      else
+        for _, b in ipairs(buf) do
+          out[#out + 1] = string.format("<0x%02x>", b)
+        end
+      end
+      buf = {}
+    end
+  end
+  local i = 1
+  while true do
+    local s, e, hex = str:find("<0x(%x%x)>", i)
+    if not s then break end
+    if s > i then
+      flush()
+      out[#out + 1] = str:sub(i, s - 1)
+    end
+    buf[#buf + 1] = tonumber(hex, 16)
+    i = e + 1
+  end
+  flush()
+  if i <= #str then out[#out + 1] = str:sub(i) end
+  return table.concat(out)
 end
 
 ---Parses a block into a proper table.
@@ -245,6 +285,7 @@ _ENV.prelude = {
   extractBlocks = extractBlocks,
   extractNodes = extractNodes,
   getPriorityLoreBook = getPriorityLoreBook,
+  killGuim = killGuim,
   parseBlock = parseBlock,
   split = split,
   trim = trim

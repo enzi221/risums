@@ -152,7 +152,7 @@ local function render(block)
                   risu_btn = "lb-interaction__lightboard-comments__AddComment/Author:" .. post.Author .. "(" .. post.Time .. ")",
                   type = "button",
                   h.lb_comment_icon { closed = true },
-                  "대댓글 달기"
+                  h.span "대댓글 달기"
                 },
               },
             },

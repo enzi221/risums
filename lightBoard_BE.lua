@@ -148,30 +148,46 @@ end
 --- Strips a node block.
 --- @param text string
 --- @param tagName string
+--- @param attrs table<string, string>?
 --- @return string
-local function removeNode(text, tagName)
+local function removeNode(text, tagName, attrs)
   if not text then return "" end
 
   local escapedTagName = prelude.escMatch(tagName)
-  local tagPattern = "<(" .. escapedTagName .. ")[^>]*>"
+  local tagPattern = "<(" .. escapedTagName .. ")([^>]*)>"
+  local searchPos = 1
+  while true do
+    local s, e, actualTagName, attrString = text:find(tagPattern, searchPos)
+    if not s then return text end
 
-  local s, e, actualTagName = text:find(tagPattern, 1)
+    local matchAttrs = true
+    if attrs then
+      for k, v in pairs(attrs) do
+        local attrPattern = k .. "%s*=%s*[\"']" .. prelude.escMatch(v) .. "[\"']"
+        if not attrString:find(attrPattern) then
+          matchAttrs = false
+          break
+        end
+      end
+    end
 
-  if not s then
-    return text
-  end
+    if not matchAttrs then
+      searchPos = e + 1
+      goto continue
+    end
 
-  local closePattern = "</" .. actualTagName .. ">"
-  local closeStart, closeEnd = text:find(closePattern, e + 1, true)
-
-  if closeStart then
-    local prefix = text:sub(1, s - 1)
-    local suffix = text:sub(closeEnd + 1)
-    prefix = prefix:gsub("\n+$", "")
-    suffix = suffix:gsub("^\n+", "")
-    return prefix .. suffix
-  else
-    return text
+    local closePattern = "</" .. actualTagName .. ">"
+    local closeStart, closeEnd = text:find(closePattern, e + 1, true)
+    if closeStart then
+      local prefix = text:sub(1, s - 1)
+      local suffix = text:sub(closeEnd + 1)
+      prefix = prefix:gsub("\n+$", "")
+      suffix = suffix:gsub("^\n+", "")
+      return prefix .. '\n' .. suffix
+    else
+      return text
+    end
+    ::continue::
   end
 end
 
@@ -200,6 +216,7 @@ end
 --- @field authorsNote boolean
 --- @field charDesc boolean
 --- @field identifier string
+--- @field lazy boolean
 --- @field loreBooks boolean
 --- @field mode '1'|'2'
 --- @field multilingual boolean
@@ -238,18 +255,27 @@ local function getManifests(globalMode)
 
       if not tbl.authorsNote then
         tbl.authorsNote = getGlobalVar(triggerId, "toggle_" .. identifier .. ".authorsNote") == "1"
+      else
+        tbl.authorsNote = tbl.authorsNote == "true"
       end
-      tbl.authorsNote = tbl.authorsNote == "true"
 
       if not tbl.charDesc then
         tbl.charDesc = getGlobalVar(triggerId, "toggle_" .. identifier .. ".charDesc") == "1"
+      else
+        tbl.charDesc = tbl.charDesc == "true"
       end
-      tbl.charDesc = tbl.charDesc == "true"
 
       if not tbl.loreBooks then
         tbl.loreBooks = getGlobalVar(triggerId, "toggle_" .. identifier .. ".loreBooks") == "1"
+      else
+        tbl.loreBooks = tbl.loreBooks == "true"
       end
-      tbl.loreBooks = tbl.loreBooks == "true"
+
+      if not tbl.lazy then
+        tbl.lazy = getGlobalVar(triggerId, "toggle_" .. identifier .. ".lazy") == "1"
+      else
+        tbl.lazy = tbl.lazy == "true"
+      end
 
       if not tbl.multilingual then
         tbl.multilingual = true
@@ -259,8 +285,9 @@ local function getManifests(globalMode)
 
       if not tbl.personaDesc then
         tbl.personaDesc = getGlobalVar(triggerId, "toggle_" .. identifier .. ".personaDesc") == "1"
+      else
+        tbl.personaDesc = tbl.personaDesc == "true"
       end
-      tbl.personaDesc = tbl.personaDesc == "true"
 
       if not tbl.rerollBehavior then
         tbl.rerollBehavior = "preserve-prev"
@@ -498,6 +525,7 @@ local function processLLMResult(manifest, response)
     local cleanOutput = response.result:gsub("```", "")
     cleanOutput = truncateRepeats(cleanOutput, 5)
     cleanOutput = removeNode(cleanOutput, "Thoughts")
+    cleanOutput = prelude.killGuim(cleanOutput)
 
     local shouldRemoveThoughts = getGlobalVar(triggerId, "toggle_lightboard.thoughts") == "0"
     if shouldRemoveThoughts then
@@ -513,8 +541,13 @@ local function processLLMResult(manifest, response)
   end
 end
 
---- @type fun(manifest: Manifest, fullChat: Chat[]): Promise<string>
-local runGenerationAsync = async(function(manifest, fullChat)
+--- @type fun(manifest: Manifest, fullChat: Chat[], lazy: boolean): Promise<string>
+local runGenerationAsync = async(function(manifest, fullChat, lazy)
+  -- Can't use manifest.lazy, this function is used for both lazy (new) and non-lazy (rerolls) generations.
+  if lazy then
+    return '\n<lb-lazy identifier="' .. manifest.identifier .. '"></lb-lazy>'
+  end
+
   local prompt = makePrompt(manifest, fullChat, 'generation')
 
   local response = runLLM(manifest, prompt)
@@ -560,9 +593,9 @@ local main = async(function()
 
     -- Create promises for the current chunk
     for j = i, chunkEndIndex do
-      local manifest_item = manifests[j]
-      if manifest_item then
-        table.insert(currentChunkPromises, runGenerationAsync(manifest_item, fullChat))
+      local manifest = manifests[j]
+      if manifest then
+        table.insert(currentChunkPromises, runGenerationAsync(manifest, fullChat, manifest.lazy))
       end
     end
 
@@ -668,7 +701,9 @@ local function reroll(identifier)
   -- force rerender
   setChat(triggerId, idx, lastChatNoNode)
 
-  local promise = runGenerationAsync(manifest, fullChat)
+  -- Since I modified fullChat, -1 IS the last chat now, unlike line 679.
+  -- Need to offset the difference
+  local promise = runGenerationAsync(manifest, { table.unpack(fullChat, 1, #fullChat + idx + 1) }, false)
   local success, result = pcall(function()
     return promise:await()
   end)
@@ -679,7 +714,9 @@ local function reroll(identifier)
     return
   end
 
-  local finalChat = lastChatNoNode .. "\n" .. result .. "\n"
+  lastChatNoNode = lastChatNoNode:gsub("\n?<!%-%- End platform managed %-%->\n*", "\n")
+  local finalChat = removeNode(lastChatNoNode, 'lb-lazy', { identifier = identifier }) ..
+      "\n" .. result .. "\n<!-- End platform managed -->"
 
   setChat(triggerId, idx, finalChat)
 end
@@ -810,14 +847,14 @@ local function interact(fullChat, identifier, action, direction)
 
   local lastChatFull = lastCharChat.data
 
-  local promise = runInteractionAsync(manifest, fullChat, action, direction)
+  local promise = runInteractionAsync(manifest, { table.unpack(fullChat, 1, #fullChat + idx + 1) }, action, direction)
   local success, result = pcall(function()
     return promise:await()
   end)
 
   if not success then
     setChat(triggerId, idx, lastChatFull)
-    alertError(triggerId, "[LightBoard] 상호작용 실패. 캐릭터 고급 설정 > 저수준 접근을 활성화했나요? Failed at reroll: " .. tostring(result))
+    alertError(triggerId, "[LightBoard] Failed at interaction: " .. tostring(result))
     return
   end
 

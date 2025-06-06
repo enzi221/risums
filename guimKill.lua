@@ -1,44 +1,32 @@
-local function healDismemberedUTF8(inputStr)
-  local result_parts = {}
-  local i = 1
-  local n = #inputStr
-
-  while i <= n do
-    local first_tag_hex_content = string.match(inputStr, "^<0x(%x%x)>", i)
-
-    if first_tag_hex_content then
-      local bytes_in_sequence = {}
-      local current_scan_pos = i
-      local original_tags_start_pos = i
-
-      while current_scan_pos <= n do
-        local current_tag_hex = string.match(inputStr, "^<0x(%x%x)>", current_scan_pos)
-        if current_tag_hex then
-          table.insert(bytes_in_sequence, tonumber(current_tag_hex, 16))
-          current_scan_pos = current_scan_pos + 6 -- Assuming fixed tag length like <0xAA>
-        else
-          break
-        end
-      end
-
-      if #bytes_in_sequence > 0 then
-        local temp_char_str = string.char(table.unpack(bytes_in_sequence))
-        if utf8.len(temp_char_str) then
-          table.insert(result_parts, temp_char_str)
-        else
-          table.insert(result_parts, string.sub(inputStr, original_tags_start_pos, current_scan_pos - 1))
-        end
-        i = current_scan_pos
+local function healDismemberedUTF8(str)
+  local out, buf = {}, {}
+  local function flush()
+    if #buf > 0 then
+      local s = string.char(table.unpack(buf))
+      if utf8.len(s) then
+        out[#out+1] = s
       else
-        table.insert(result_parts, string.sub(inputStr, i, i))
-        i = i + 1
+        for _,b in ipairs(buf) do
+          out[#out+1] = string.format("<0x%02x>", b)
+        end
       end
-    else
-      table.insert(result_parts, string.sub(inputStr, i, i))
-      i = i + 1
+      buf = {}
     end
   end
-  return table.concat(result_parts)
+  local i = 1
+  while true do
+    local s,e,hex = str:find("<0x(%x%x)>", i)
+    if not s then break end
+    if s > i then
+      flush()
+      out[#out+1] = str:sub(i, s-1)
+    end
+    buf[#buf+1] = tonumber(hex,16)
+    i = e + 1
+  end
+  flush()
+  if i <= #str then out[#out+1] = str:sub(i) end
+  return table.concat(out)
 end
 
 local function main(tid)
