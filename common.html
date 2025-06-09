@@ -1,0 +1,277 @@
+<style>
+  @keyframes lb-slidein {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .lb-module-root {
+    align-items: flex-start;
+    color: var(--fg, #f8f8f2);
+    display: flex;
+    gap: 8px;
+    margin: 20px 0;
+  }
+
+  .lb-collapsible,
+  .lb-lazyloader {
+    flex-grow: 1;
+    max-width: 700px;
+    overflow: hidden;
+  }
+
+  .lb-lazyloader {
+    filter: grayscale(35%);
+    opacity: 0.5;
+    transition: filter 0.2s ease, opacity 0.2s ease;
+  }
+  .lb-lazyloader:hover {
+    filter: none;
+    opacity: 1;
+  }
+
+  .lb-lazyloader svg {
+    height: 14px;
+    margin-left: 0.5ch;
+    width: 14px;
+  }
+
+  .lb-collapsible-animated {
+    --trans-duration: 0.2s;
+  }
+  .lb-collapsible-animated::details-content {
+    transition-behavior: allow-discrete;
+    transition-duration: var(--trans-duration);
+    transition-property: opacity, transform, content-visibility;
+  }
+  .lb-collapsible-animated[open]::details-content {
+    opacity: 1;
+    transform: translateY(0);
+    transition-timing-function: ease-out;
+  }
+  .lb-collapsible-animated:not([open])::details-content {
+    opacity: 0;
+    transform: translateY(-5px);
+    transition-delay: 0s, 0.5s, 0s;
+    transition-duration: var(--trans-duration);
+    transition-timing-function: ease;
+  }
+
+  .lb-opener {
+    background-color: var(--bg, #3a3c4eff);
+    border: none;
+    border-radius: 8px;
+    color: var(--fg, #f8f8f2);
+    cursor: pointer;
+    display: flex;
+    height: 36px;
+    padding: 8px 16px;
+    font-size: 1em;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    user-select: none;
+  }
+
+  .lb-opener::before {
+    content: '';
+    inset: 0;
+    position: absolute;
+  }
+
+  .lb-opener::after {
+    content: '';
+    display: block;
+    flex-grow: 1;
+    margin: -0.6em -1.2em -0.6em 1em;
+    position: relative;
+  }
+
+  .lb-opener > span {
+    align-items: center;
+    display: flex;
+    position: relative;
+    z-index: 1;
+  }
+  .lb-opener > span::before {
+    margin-right: 0.5ch;
+  }
+  .lb-opener > span::after {
+    margin-left: 0.5ch;
+    position: relative;
+  }
+
+  .lb-collapsible:not([open]) > .lb-opener > span::after {
+    content: '보기🔦';
+  }
+  .lb-collapsible[open] > .lb-opener > span::after {
+    content: '닫기🔦';
+  }
+
+  @keyframes gentle-shake {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    10% {
+      transform: translate(-1px, -1px);
+    }
+    20% {
+      transform: translate(1px, 1px);
+    }
+    30% {
+      transform: translate(-1px, 1px);
+    }
+    40% {
+      transform: translate(1px, -1px);
+    }
+    50% {
+      transform: translate(-0.5px, -0.5px);
+    }
+    60% {
+      transform: translate(0.5px, 0.5px);
+    }
+    70% {
+      transform: translate(-0.5px, 0.5px);
+    }
+    80% {
+      transform: translate(0.5px, -0.5px);
+    }
+    90% {
+      transform: translate(0, 0);
+    }
+  }
+
+  .lb-reroll {
+    align-items: center;
+    background-color: var(--bg, #3a3c4eff);
+    border-radius: 8px;
+    color: var(--fg, #f8f8f2);
+    display: flex;
+    flex: 0 0 auto;
+    font-size: 10px;
+    height: 36px;
+    justify-content: center;
+    position: relative;
+    width: 36px;
+  }
+  .lb-reroll:hover {
+    animation: gentle-shake 0.5s ease-in-out;
+  }
+
+  .lb-reroll svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  @keyframes beating {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%) scale(0);
+    }
+    10% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-50%) scale(3);
+    }
+  }
+
+  .lb-pending {
+    border-radius: 8px;
+    max-width: 700px;
+    overflow: hidden;
+    padding: 8px 16px;
+    position: relative;
+  }
+  .lb-pending::before {
+    background: var(--pending-bg-color, #05081a80);
+    content: '';
+    inset: 0;
+    mix-blend-mode: multiply;
+    position: absolute;
+  }
+  .lb-pending::after {
+    animation: beating 3s ease-out;
+    animation-iteration-count: infinite;
+    background: var(--pending-pulse-color);
+    border-radius: 256px;
+    content: '';
+    height: 256px;
+    inset: 0 auto 0 0;
+    margin: auto;
+    width: 256px;
+    position: absolute;
+  }
+
+  .lb-rerolling {
+    --pending-pulse-color: red;
+  }
+  .lb-interacting {
+    --pending-pulse-color: blue;
+  }
+
+  .lb-pending-note {
+    color: #fff;
+    position: relative;
+    z-index: 1;
+  }
+  .lb-pending-note small {
+    opacity: 0.67;
+  }
+
+  .lb-interacting-hint {
+    display: block;
+    margin-top: 8px;
+  }
+
+  .lb-dialog {
+    animation: lb-slidein 0.2s ease forwards;
+    background: none;
+    bottom: 128px;
+    height: fit-content;
+    max-height: calc(100svh - 256px);
+    max-width: 800px;
+    opacity: 0;
+    top: auto;
+    width: 100%;
+  }
+  .lb-dialog:focus {
+    outline: none;
+  }
+  .lb-dialog::backdrop {
+    backdrop-filter: blur(4px);
+    background: #0006;
+  }
+
+  @media (max-height: 1024px) {
+    .lb-dialog {
+      bottom: 64px;
+      max-height: calc(100svh - 128px);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .lb-collapsible[open] + .lb-reroll {
+      display: none;
+    }
+
+    .lb-opener {
+      padding: 8px 12px;
+    }
+
+    .lb-dialog {
+      bottom: 32px;
+      max-height: calc(100svh - 64px);
+    }
+  }
+</style>

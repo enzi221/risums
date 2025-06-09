@@ -42,7 +42,7 @@ end
 local function assembleAuthorDisplay(authorData)
   local hunterRankDisplay = nil
   if authorData.AuthorRank and authorData.AuthorRank ~= "" then
-    hunterRankDisplay = h.span['hunter-level hunter-rank-' ..
+    hunterRankDisplay = h.span['lb-hn-level lb-hn-rank-' ..
     string.lower(authorData.AuthorRank)] {
       authorData.AuthorRank
     }
@@ -50,14 +50,14 @@ local function assembleAuthorDisplay(authorData)
 
   local nickTypeIcon = nil
   if authorData.AuthorType == 'F' then
-    nickTypeIcon = h.span['icon-fixed'] "고"
+    nickTypeIcon = h.span['lb-hn-icon-fixed'] "고"
   elseif authorData.AuthorType == 'S' then
-    nickTypeIcon = h.span['icon-semi'] "반"
+    nickTypeIcon = h.span['lb-hn-icon-semi'] "반"
   end
 
   local ip = nil
   if authorData.AuthorIP and authorData.AuthorIP ~= "" then
-    ip = h.span['writer-ip'] {
+    ip = h.span['lb-hn-writer-ip'] {
       "(" .. authorData.AuthorIP .. ")"
     }
   end
@@ -135,13 +135,11 @@ local function render(block)
     for _, post in ipairs(posts) do
       local comment_es = {}
       for _, comment in ipairs(post.Comments) do
-        local comment_e = h.li['comment-item'] {
-          h.div['comment-author'] {
+        local comment_e = h.li['lb-hn-comment-item'] {
+          h.span['lb-hn-comment-author'] {
             assembleAuthorDisplay(comment),
           },
-          h.div['comment-text'] {
-            comment.Content or "(내용 없음)"
-          }
+          comment.Content or "(내용 없음)"
         }
 
         table.insert(comment_es, comment_e)
@@ -149,67 +147,60 @@ local function render(block)
 
       local idPrefix = math.random()
 
-      table.insert(post_es, h.div['post-item'] {
-        h.input['post-toggle'] {
+      table.insert(post_es, h.div['lb-hn-post-item'] {
+        h.input['lb-hn-post-toggle'] {
           id = idPrefix .. post.No,
           type = "checkbox",
         },
-        h.div['post-row'] {
-          h.div['post-cell col-num'] {
+        h.div['lb-hn-post-row'] {
+          h.span['lb-hn-col-num lb-hn-text-sm lb-hn-text-muted'] {
             post.No
           },
-          h.div['post-cell col-title'] {
-            h.label['post-title-label'] {
-              htmlFor = idPrefix .. post.No,
-              h.span {
-                post.Title or "(제목 없음)"
-              }
-            }
+          h.label['lb-hn-col-title lb-hn-post-title-label'] {
+            htmlFor = idPrefix .. post.No,
+            post.Title or "(제목 없음)"
           },
-          h.div['post-cell col-writer'] {
+          h.span['lb-hn-col-writer lb-hn-text-sm'] {
             assembleAuthorDisplay(post)
           },
-          h.div['post-cell col-date'] {
+          h.span['lb-hn-col-date lb-hn-text-sm lb-hn-text-muted'] {
             post.Time or "-"
           },
-          h.div['post-cell col-view'] {
+          h.span['lb-hn-col-view lb-hn-text-sm lb-hn-text-muted'] {
             post.Views or "-"
           },
-          h.div['post-cell col-rank'] {
+          h.span['lb-hn-col-rank lb-hn-text-sm lb-hn-text-muted'] {
             post.Upvotes or "-"
           }
         },
-        h.div['post-content-wrapper'] {
-          h.div['post-view-header'] {
-            h.div['post-view-title'] {
+        h.div['lb-hn-content'] {
+          h.div['lb-hn-view-header'] {
+            h.div['lb-hn-view-title'] {
               post.Title or "(제목 없음)"
             },
-            h.div['post-view-info'] {
-              h.span['author'] {
+            h.div['lb-hn-view-info lb-hn-text-sm lb-hn-text-muted'] {
+              h.span['lb-hn-author'] {
                 assembleAuthorDisplay(post),
               },
-              h.span['separator'] "|",
+              h.span['lb-hn-separator'] "|",
               h.span {
                 "등록일: " .. (post.Time or "-")
               },
-              h.span['separator'] "|",
+              h.span['lb-hn-separator'] "|",
               h.span {
                 "조회: " .. (post.Views or "-")
               },
-              h.span['separator'] "|",
+              h.span['lb-hn-separator'] "|",
               h.span {
                 "추천: " .. (post.Upvotes or "-")
               }
             }
           },
-          h.div['post-full-content'] {
+          h.div['lb-hn-full-content'] {
             post.Content or "(내용 없음)"
           },
-          #comment_es > 0 and h.div['comments-section'] {
-            h.h4 {
-              "댓글 " .. #comment_es .. "개"
-            },
-            h.ul['comment-list'] {
+          #comment_es > 0 and h.div['lb-hn-comments'] {
+            h.ul['lb-hn-comment-list'] {
               comment_es
             },
             h.button['lb-hn-add-comment'] {
@@ -228,22 +219,27 @@ local function render(block)
     }
   end
 
-  local boardName = block.attributes.name or "헌터넷 게시판"
+  local id = 'lb-hn-' .. math.random()
+
+  local boardTitle = block.attributes.name or "헌터넷 게시판"
   local html = h.div['lb-module-root'] {
     data_id = 'lightboard-hn',
-    h.details['lb-collapsible lb-collapsible-animated'] {
-      name = 'lightboard-hn',
-      h.summary['lb-opener'] {
+    h.button['lb-collapsible'] {
+      popovertarget = id,
+      type = 'button',
+      h.span['lb-opener'] {
         h.span {
-          boardName
+          boardTitle
         }
       },
-      h.div['hunter-container'] {
-        h.div['hunter-header'] {
-          h.span {
-            boardName
-          },
-          h.div['hunter-top-links'] {
+    },
+    h.dialog['lb-dialog lb-hn-dialog'] {
+      id = id,
+      popover = '',
+      h.div['lb-hn-header'] {
+        h.div['lb-hn-title'] {
+          boardTitle,
+          h.div['lb-hn-nav lb-hn-text-sm'] {
             h.span "헌터넷 정보",
             " | ",
             h.span "설정",
@@ -253,49 +249,43 @@ local function render(block)
             h.span "프로필",
             " | ",
             h.span "길드 정보",
-            " | ",
-            h.span "새로고침"
           }
         },
-        h.div['hunter-options'] {
-          h.div['tab-menu'] {
-            h.button['tab-button active'] {
-              "전체글"
-            },
-            h.button['tab-button'] {
-              "공지사항"
-            },
-            h.button['tab-button'] {
-              "퀘스트"
-            }
+        h.div['lb-hn-options'] {
+          h.select['lb-hn-text-sm lb-hn-text-light'] {
+            h.option { value = '30', '30개' },
+            h.option { value = '50', '50개' },
+            h.option { value = '100', '100개' }
           },
-          h.div['hunter-actions'] {
-            h.select {
-              h.option { value = '30', '30개' },
-              h.option { value = '50', '50개' },
-              h.option { value = '100', '100개' }
+          h.button['lb-hn-write-button'] {
+            risu_btn = "lb-interaction__lightboard-hn__AddPost",
+            type = "button",
+            h.i '📝',
+            ' 글쓰기'
+          }
+        },
+      },
+      h.div['lb-hn-wrap'] {
+        h.div['lb-hn-container'] {
+          h.div['lb-hn-list-container'] {
+            h.div['lb-hn-list-header lb-hn-text-sm'] {
+              h.span['lb-hn-col-num'] '번호',
+              h.span '제목',
+              h.span '작성자',
+              h.span '등록일',
+              h.span['lb-hn-col-view'] '조회',
+              h.span['lb-hn-col-rank'] '추천'
             },
-            h.button['write-button'] {
-              risu_btn = "lb-interaction__lightboard-hn__AddPost",
-              type = "button",
-              h.i '📝',
-              ' 글쓰기'
+            h.div['lb-hn-list-body'] {
+              post_es
             }
           }
         },
-        h.div['post-list-container'] {
-          h.div['post-list-header'] {
-            h.div['header-item col-num'] { '번호' },
-            h.div['header-item col-title'] { '제목' },
-            h.div['header-item col-writer'] { '작성자' },
-            h.div['header-item col-date'] { '등록일' },
-            h.div['header-item col-view'] { '조회' },
-            h.div['header-item col-rank'] { '추천' }
-          },
-          h.div['post-list-body'] {
-            post_es
-          }
-        }
+      },
+      h.button['lb-hn-close'] {
+        popovertarget = id,
+        type = 'button',
+        "닫기",
       }
     },
     h.button['lb-reroll'] {

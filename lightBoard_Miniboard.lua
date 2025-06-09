@@ -73,15 +73,15 @@ local function render(block)
       local comment_es = {}
       for _, comment in ipairs(post.Comments) do
         local comment_e = h.div['lb-mini-comment'] {
-          h.div['lb-mini-comment-meta'] {
+          h.div['lb-mini-meta'] {
             h.span['lb-mini-author'] {
               comment.Author,
             },
             h.span['lb-mini-time'] {
-              "(" .. (comment.Time or "시간 정보 없음") .. ")"
+              (comment.Time or "")
             }
           },
-          h.p['lb-mini-comment-text'] {
+          h.p['lb-mini-text'] {
             comment.Content
           }
         }
@@ -96,34 +96,31 @@ local function render(block)
             h.span['lb-mini-post-title-text'] {
               postTitle,
             },
-            h.div['lb-mini-post-summary-meta'] {
+            h.div['lb-mini-meta'] {
               h.span['lb-mini-author'] {
                 post.Author,
               },
               h.span['lb-mini-time'] {
                 postTime,
               },
-              h.span['lb-mini-votes'] {
-                h.span['lb-mini-summary-like'] {
-                  "▲ " .. postUpvotes,
-                },
-                h.span['lb-mini-summary-dislike'] {
-                  "▼ " .. postDownvotes,
-                },
+              h.span {
+                "▲ " .. postUpvotes,
+              },
+              h.span {
+                "▼ " .. postDownvotes,
               },
             },
           },
         },
         h.div['lb-mini-post-content'] {
-          h.p['lb-mini-post-body-text'] {
+          h.p['lb-mini-text'] {
             postContent,
           },
-          h.div['lb-mini-comments-section'] {
-            h.div['lb-mini-comments-section-header'] {
-              h.span['lb-mini-comments-title'] {
-                "댓글 (" .. #comment_es .. ")"
-              },
-              h.button['lb-mini-add-content'] {
+          h.hr['lb-mini-hr'] { void = true },
+          h.div['lb-mini-rowgap lb-mini-comments'] {
+            h.div['lb-mini-comments-header'] {
+              h.span['lb-mini-comments-heading'] '댓글',
+              h.button['lb-mini-btn'] {
                 risu_btn = "lb-interaction__lightboard-miniboard__AddComment/Title:" .. postTitle,
                 type = "button",
                 h.lb_comment_icon { closed = true },
@@ -142,37 +139,48 @@ local function render(block)
     }
   end
 
+  local id = 'lb-mini-' .. math.random()
+
   local boardTitle = block.attributes.name or "미니보드"
   local html = h.div['lb-module-root'] {
     data_id = 'lightboard-miniboard',
-    h.details['lb-collapsible lb-collapsible-animated'] {
-      name = 'lightboard-miniboard',
-      h.summary['lb-opener'] {
-        h.span '♦️미니보드',
+    h.button['lb-collapsible'] {
+      popovertarget = id,
+      type = 'button',
+      h.span['lb-opener'] {
+        h.span '미니보드',
       },
-      h.div['lb-mini-board-wrapper'] {
-        h.div['lb-mini-board-header'] {
-          h.div['lb-mini-board-title'] {
-            h.b {
-              boardTitle
-            },
-            h.button['lb-mini-browse-board'] {
-              risu_btn = "lb-interaction__lightboard-miniboard__ChangeBoard",
-              type = "button",
-              "게시판 둘러보기"
-            },
-          },
-          h.button['lb-mini-add-content'] {
-            risu_btn = "lb-interaction__lightboard-miniboard__AddPost",
-            type = "button",
-            h.lb_comment_icon { closed = true },
-            "게시글 쓰기"
-          },
+    },
+    h.dialog['lb-dialog lb-mini-dialog'] {
+      id = id,
+      popover = '',
+      h.div['lb-mini-header'] {
+        h.b {
+          boardTitle
         },
-        h.div['lb-mini-posts-list'] {
+        h.button['lb-mini-btn'] {
+          risu_btn = "lb-interaction__lightboard-miniboard__ChangeBoard",
+          type = "button",
+          "게시판 둘러보기"
+        },
+        h.button['lb-mini-btn'] {
+          risu_btn = "lb-interaction__lightboard-miniboard__AddPost",
+          style = 'margin-left:auto',
+          type = "button",
+          h.lb_comment_icon { closed = true },
+          "게시글 쓰기"
+        },
+      },
+      h.div['lb-mini-wrap'] {
+        h.div['lb-mini-container lb-mini-rowgap'] {
           post_es,
         },
       },
+      h.button['lb-mini-close'] {
+        popovertarget = id,
+        type = 'button',
+        "닫기",
+      }
     },
     h.button['lb-reroll'] {
       risu_btn = 'lb-reroll__lightboard-miniboard',
