@@ -6,6 +6,10 @@
 local Chat = {}
 
 --- @param triggerId string
+--- @return number
+function getChatLength(triggerId) end
+
+--- @param triggerId string
 --- @return Chat[]
 function getFullChat(triggerId) end
 

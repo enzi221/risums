@@ -222,6 +222,7 @@ end
 --- @field multilingual boolean
 --- @field personaDesc boolean
 --- @field rerollBehavior 'preserve-prev'|'remove-prev'
+--- @field onOutput (fun (triggerId: string, output: string): string)?
 
 --- Retrieves active manifests.
 --- @param globalMode '1'|'2'
@@ -291,6 +292,22 @@ local function getManifests(globalMode)
 
       if not tbl.rerollBehavior then
         tbl.rerollBehavior = "preserve-prev"
+      end
+
+      local outputFnSrcBook = prelude.getPriorityLoreBook(triggerId, identifier .. '.lb.onOutput')
+      -- 1. Source must not be empty
+      if outputFnSrcBook and outputFnSrcBook.content ~= '' then
+        local success, result = pcall(load, outputFnSrcBook.content, '@' .. identifier .. '.lb.onOutput', 't')
+        -- 2. Must be loadable
+        if success and type(result) == "function" then
+          local outputFn = result()
+          -- 3. Must have returned a function factory
+          if type(outputFn) == 'function' then
+            tbl.onOutput = outputFn
+          end
+        elseif not success then
+          print("[LightBoard] Failed to load onOutput for " .. identifier .. ": " .. tostring(result))
+        end
       end
 
       local mode = getGlobalVar(triggerId, "toggle_" .. identifier .. ".mode")
@@ -532,7 +549,7 @@ local function processLLMResult(manifest, response)
       cleanOutput = removeNode(cleanOutput, "lb-process")
     end
 
-    return cleanOutput
+    return manifest.onOutput and manifest.onOutput(triggerId, cleanOutput) or cleanOutput
   else
     print("[LightBoard] Failed to get LLM response for " .. manifest.identifier .. ":\n" .. response.result)
     alertError(triggerId,
@@ -710,7 +727,7 @@ local function reroll(identifier)
 
   if not success then
     setChat(triggerId, idx, lastChatFull)
-    alertError(triggerId, "[LightBoard] 리롤 실패. 캐릭터 고급 설정 > 저수준 접근을 활성화했나요? Failed at reroll: " .. tostring(result))
+    alertError(triggerId, "[LightBoard] Failed at reroll: " .. tostring(result))
     return
   end
 
@@ -858,7 +875,9 @@ local function interact(fullChat, identifier, action, direction)
     return
   end
 
-  if result then
+  if not result or result == null then
+    alertError(triggerId, "[LightBoard] 상호작용 불가. 모델 응답이 비어있거나 null입니다.")
+  elseif result then
     local lastChatNoNode = removeNode(lastChatFull, identifier)
     local finalChat = lastChatNoNode .. "\n" .. result .. "\n"
     setChat(triggerId, idx, finalChat)
