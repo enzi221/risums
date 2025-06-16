@@ -32,10 +32,14 @@ The end of the chat log will be marked with `]] .. END_MARKER .. [[`. Ignore all
 
 ]]
 
--- data format, guideline, language
-local OUTPUT_INST = END_MARKER .. [[
+local THOUGHTS_GUIDELINE = [[# Thoughts Guideline
 
-# Output
+%s
+
+]]
+
+-- data format, guideline, language
+local OUTPUT_INST = [[# Output
 
 MUST output only in the format below and nothing else.
 
@@ -399,7 +403,13 @@ local function makePromptOutro(manifest, type)
     language = "Output each field value in dominant language of chat log."
   end
 
-  return OUTPUT_INST:format(
+  local outputGuideline = ''
+  if thoughtsFormat and thoughtsFlag == '3' then
+    outputGuideline = THOUGHTS_GUIDELINE:format(thoughtsFormat)
+    thoughtsFormat = nil
+  end
+
+  return END_MARKER .. '\n\n' .. outputGuideline .. OUTPUT_INST:format(
     ((thoughtsFormat and thoughtsFormat ~= "" and "<lb-process>\n(" .. thoughtsFormat .. ")\n</lb-process>\n\n") or "") ..
     dataFormat,
     guideline, language)
@@ -597,7 +607,7 @@ local main = async(function()
   local allProcessedResults = {}
   local numManifests = #manifests
 
-  local maxConcurrent = math.min(3, math.max(1, tonumber(getGlobalVar(triggerId, "toggle_lightboard.concurrent")) or 1))
+  local maxConcurrent = math.min(5, math.max(1, tonumber(getGlobalVar(triggerId, "toggle_lightboard.concurrent")) or 1))
 
   print("[LightBoard] Processing " .. numManifests .. " manifests with max concurrency of " .. maxConcurrent)
 

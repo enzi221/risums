@@ -339,8 +339,15 @@ end
 
 listenEdit(
   "editDisplay",
-  function(tid, data)
+  function(tid, data, meta)
     setTriggerId(tid)
+
+    if meta and meta.index ~= nil then
+      local position = meta.index - getChatLength(triggerId)
+      if position < -5 then
+        return data
+      end
+    end
 
     local success, result = pcall(main, data)
     if success then
