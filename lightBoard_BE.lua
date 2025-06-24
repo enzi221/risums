@@ -226,6 +226,7 @@ end
 --- @field multilingual boolean
 --- @field personaDesc boolean
 --- @field rerollBehavior 'preserve-prev'|'remove-prev'
+--- @field onInput (fun (triggerId: string, input: string, index: number): string)?
 --- @field onOutput (fun (triggerId: string, output: string): string)?
 
 --- Retrieves active manifests.
@@ -298,20 +299,29 @@ local function getManifests(globalMode)
         tbl.rerollBehavior = "preserve-prev"
       end
 
-      local outputFnSrcBook = prelude.getPriorityLoreBook(triggerId, identifier .. '.lb.onOutput')
-      -- 1. Source must not be empty
-      if outputFnSrcBook and outputFnSrcBook.content ~= '' then
-        local success, result = pcall(load, outputFnSrcBook.content, '@' .. identifier .. '.lb.onOutput', 't')
-        -- 2. Must be loadable
-        if success and type(result) == "function" then
-          local outputFn = result()
-          -- 3. Must have returned a function factory
-          if type(outputFn) == 'function' then
-            tbl.onOutput = outputFn
+      local function getCallback(cbn)
+        local fqn = identifier .. '.lb.' .. cbn
+        local srcBook = prelude.getPriorityLoreBook(triggerId, fqn)
+        -- 1. Source must not be empty
+        if srcBook and srcBook.content ~= '' then
+          local success, result = pcall(load, srcBook.content, '@' .. fqn, 't')
+          -- 2. Must be loadable
+          if success and type(result) == "function" then
+            return result
+          elseif not success then
+            print("[LightBoard] Failed to load " .. cbn .. " for " .. identifier .. ": " .. tostring(result))
           end
-        elseif not success then
-          print("[LightBoard] Failed to load onOutput for " .. identifier .. ": " .. tostring(result))
         end
+      end
+
+      local onInput = getCallback('onInput')
+      if onInput then
+        tbl.onInput = onInput()
+      end
+
+      local onOutput = getCallback('onOutput')
+      if onOutput then
+        tbl.onOutput = onOutput()
       end
 
       local mode = getGlobalVar(triggerId, "toggle_" .. identifier .. ".mode")
@@ -483,6 +493,8 @@ local function makePrompt(manifest, log, type, extras)
   local userChatsAllowed = getGlobalVar(triggerId, "toggle_lightboard.noUser") ~= "1"
   local maxLogs = math.max(1, tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxLogs")) or 4)
 
+  -- This takes user chat exclusion into account
+  local indexAdjusted = #log + 1
   for i = #log, 1, -1 do
     if #logsToAdd >= maxLogs then
       break
@@ -493,6 +505,16 @@ local function makePrompt(manifest, log, type, extras)
     end
 
     local text = removeTaggedContent(log[i].data, identifier)
+    if manifest.onInput then
+      local success, modifiedText = pcall(manifest.onInput, triggerId, text, indexAdjusted - i)
+      print(success, modifiedText)
+      if success then
+        text = modifiedText
+      else
+        print("[LightBoard] Error in onInput for " .. identifier .. ": " .. tostring(modifiedText))
+      end
+    end
+
     local tokenCount = getTokens(triggerId, text):await()
     if chatTokens + tokenCount > CHAT_TOKENS_RESERVE - 200 then
       break
@@ -504,6 +526,7 @@ local function makePrompt(manifest, log, type, extras)
       content = text,
       role = log[i].role,
     }
+    indexAdjusted = indexAdjusted - 1
 
     ::continue::
   end
@@ -719,6 +742,7 @@ local function reroll(identifier)
 
   local lastChatFull = lastCharChat.data
   local lastChatNoNode = removeNode(removeNode(lastChatFull, identifier), 'lb-fallback')
+  lastChatNoNode = removeNode(lastChatNoNode, 'lb-lazy', { identifier = identifier })
 
   if manifest.rerollBehavior == "remove-prev" then
     -- modify fullChat in-place

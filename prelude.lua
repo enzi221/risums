@@ -140,6 +140,20 @@ local function extractNodes(tagNameRaw, text)
       if not attrs[key] then attrs[key] = val end
     end
 
+    -- boolean attributes: key (without value)
+    -- First, remove all already parsed attributes to avoid conflicts
+    local tempContent = openTagContent
+    -- Remove quoted attributes
+    tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*(['\"])(.-)%2", "")
+    -- Remove unquoted attributes
+    tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*([^%s\"'>]+)", "")
+    -- Now find standalone attribute names
+    for key in tempContent:gmatch("([%w:_-]+)") do
+      if key and key ~= "" and not attrs[key] then
+        attrs[key] = "true"
+      end
+    end
+
     -- Find closing tag
     local closeStart, _ = text:find("</" .. tagName .. ">", tagEnd)
     if not closeStart then
