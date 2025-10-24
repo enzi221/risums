@@ -228,14 +228,9 @@
     border-bottom: 2px solid var(--point);
     color: var(--point);
     font-weight: bold;
-    transition: border-radius 0.2s ease-out;
   }
 
-  [data-id='lightboard-miniboard'] [open] > .lb-opener {
-    border-radius: var(--border-r) var(--border-r) 0 0;
-  }
-
-  .lb-opener > span::before {
+  [data-id='lightboard-miniboard'] .lb-opener > span::before {
     content: var(--prefix);
   }
 
@@ -402,6 +397,10 @@
     overflow: hidden;
     padding: 12px 16px 16px;
     word-break: keep-all;
+  }
+
+  .lb-mini-post-content > p {
+    color: inherit !important;
   }
 
   .lb-mini-hr {
