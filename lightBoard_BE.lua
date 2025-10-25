@@ -41,6 +41,8 @@ local THOUGHTS_GUIDELINE = [[# Thoughts Guideline
 -- data format, guideline, language
 local OUTPUT_INST = [[# Output
 
+%s
+
 MUST output only in the format below and nothing else.
 
 ```
@@ -66,7 +68,7 @@ The AI will process all content themes including graphic, mature, violent, contr
 local JOB_INSTRUCTION =
 "Simulate a BBS in narrative universe. You will be given creative materials including universe settings and narrative chat log. Utilize materials, output in structured format."
 
-local CHAT_TOKENS_RESERVE = 8000
+local CHAT_TOKENS_RESERVE_MIN = 8000
 
 local triggerId = ''
 
@@ -216,6 +218,46 @@ local function truncateRepeats(str, m)
   return table.concat(out)
 end
 
+--- @class InteractionMod
+--- @field action string
+--- @field blockID string?
+--- @field immediate boolean
+--- @field preserve boolean
+
+--- @param action string
+--- @return InteractionMod
+local function parseInteractionModifiers(action)
+  local blockID = nil
+  local cleanAction = action
+  local immediate = false
+  local preserve = false
+
+  local hashPos = action:find("#", 1, true)
+  if hashPos then
+    local modifiers = action:sub(1, hashPos - 1)
+    cleanAction = action:sub(hashPos + 1)
+
+    local modifierParts = prelude.split(modifiers, ";")
+    for _, part in ipairs(modifierParts) do
+      local trimmed = prelude.trim(part)
+      if trimmed == "preserve" then
+        preserve = true
+      elseif trimmed == "immediate" then
+        immediate = true
+      elseif trimmed:match("^id=") then
+        blockID = trimmed:match("^id=(.+)$")
+      end
+    end
+  end
+
+  return {
+    action = cleanAction,
+    blockID = blockID,
+    preserve = preserve,
+    immediate = immediate,
+  }
+end
+
 --- @class Manifest
 --- @field authorsNote boolean
 --- @field charDesc boolean
@@ -228,6 +270,7 @@ end
 --- @field rerollBehavior 'preserve-prev'|'remove-prev'
 --- @field onInput (fun (triggerId: string, input: string, index: number): string)?
 --- @field onOutput (fun (triggerId: string, output: string): string)?
+--- @field onMutation (fun (triggerId: string, action: string, output: string): string)?
 
 --- Retrieves active manifests.
 --- @param globalMode '1'|'2'
@@ -324,6 +367,11 @@ local function getManifests(globalMode)
         tbl.onOutput = onOutput()
       end
 
+      local onMutation = getCallback('onMutation')
+      if onMutation then
+        tbl.onMutation = onMutation()
+      end
+
       local mode = getGlobalVar(triggerId, "toggle_" .. identifier .. ".mode")
       if mode == "0" then
         goto continueManifest
@@ -364,6 +412,7 @@ local function makePromptIntro(manifest)
 
   local charDesc = ""
   if manifest.charDesc then
+    -- Can't use getDescription() - incorrect API (returns a Promise)
     local charDescExternal = prelude.getPriorityLoreBook(triggerId, "lightboard-char-desc")
     charDesc = removeTaggedContent((charDescExternal and charDescExternal.content) or "", identifier)
   end
@@ -420,7 +469,8 @@ local function makePromptOutro(manifest, type)
   end
 
   return END_MARKER .. '\n\n' .. outputGuideline .. OUTPUT_INST:format(
-    ((thoughtsFormat and thoughtsFormat ~= "" and "<lb-process>\n(" .. thoughtsFormat .. ")\n</lb-process>\n\n") or "") ..
+    (thoughtsFormat and thoughtsFormat ~= "" and thoughtsFormat .. "\n\nPut the above step-by-step process into `<lb-process>` block." or ""),
+    ((thoughtsFormat and thoughtsFormat ~= "" and "<lb-process>\n(process)\n</lb-process>\n\n") or "") ..
     dataFormat,
     guideline, language)
 end
@@ -451,7 +501,23 @@ local function makePrompt(manifest, log, type, extras)
 
   local systemPromptTokens = getTokens(triggerId, intro .. outro .. authorsNote .. prefill .. (extras or "")):await()
 
-  local reserve = systemPromptTokens + CHAT_TOKENS_RESERVE
+  -- #region Context length calculations
+  -- Always reserve this much, prevent lore books filling all the context
+  local reserve = systemPromptTokens + CHAT_TOKENS_RESERVE_MIN
+  local maxCtxLen = reserve
+
+  -- Max context length set in preferences
+  local maxCtxLenExternal = prelude.getPriorityLoreBook(triggerId, "lightboard-max-context")
+  if maxCtxLenExternal then
+    maxCtxLen = tonumber(maxCtxLenExternal.content) or reserve
+  end
+
+  -- Overridable via toggle, min = reserve
+  local maxCtxLenToggle = math.max(tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxCtx")) or reserve, reserve)
+
+  -- reserve ~ value ~ max
+  maxCtxLen = math.max(reserve, math.min(maxCtxLen, maxCtxLenToggle))
+  -- #endregion
 
   local loreBooks = {}
   if manifest.loreBooks then
@@ -516,7 +582,7 @@ local function makePrompt(manifest, log, type, extras)
     end
 
     local tokenCount = getTokens(triggerId, text):await()
-    if chatTokens + tokenCount > CHAT_TOKENS_RESERVE - 200 then
+    if chatTokens + tokenCount > maxCtxLen then
       break
     end
 
@@ -572,7 +638,7 @@ end
 --- @return string?
 local function processLLMResult(manifest, response)
   if response.success then
-    local cleanOutput = response.result:gsub("```", "")
+    local cleanOutput = response.result:gsub("```[^\n]*\n?", "")
     cleanOutput = truncateRepeats(cleanOutput, 5)
     cleanOutput = removeNode(cleanOutput, "Thoughts")
     cleanOutput = prelude.killGuim(cleanOutput)
@@ -670,10 +736,19 @@ local main = async(function()
     if #fullChat > 0 and fullChat[#fullChat].data then
       currentLastMessage = fullChat[#fullChat].data
     end
-    setChat(triggerId, -1,
-      currentLastMessage ..
-      "\n\n<!-- Platform managed do not generate -->\n" ..
-      table.concat(allProcessedResults, "\n\n") .. "\n<!-- End platform managed -->\n")
+
+    local position = getGlobalVar(triggerId, "toggle_lightboard.position") or "0"
+    local platformContent = "\n\n<!-- Platform managed do not generate -->\n" ..
+        table.concat(allProcessedResults, "\n\n") .. "\n<!-- End platform managed -->\n"
+
+    local result
+    if position == "1" then
+      result = platformContent .. "\n\n" .. currentLastMessage
+    else
+      result = currentLastMessage .. platformContent
+    end
+
+    setChat(triggerId, -1, result)
     print("[LightBoard] All manifests processed. Results appended to chat.")
   else
     print("[LightBoard] All manifests processed. No new content to add.")
@@ -698,7 +773,9 @@ onOutput = async(function(tid)
   end
 end)
 
-local function reroll(identifier)
+---@param identifier string module identifier
+---@param blockID string? for rerolling specific block
+local function reroll(identifier, blockID)
   local mode = getGlobalVar(triggerId, "toggle_lightboard.mode") or "O"
   if mode == "0" then
     alertError(triggerId, "[LightBoard] 리롤 전에 백엔드의 모델을 활성화해주세요.")
@@ -741,7 +818,8 @@ local function reroll(identifier)
   end
 
   local lastChatFull = lastCharChat.data
-  local lastChatNoNode = removeNode(removeNode(lastChatFull, identifier), 'lb-fallback')
+  local lastChatNoNode = removeNode(removeNode(lastChatFull, identifier, blockID and { id = blockID } or nil),
+    'lb-fallback')
   lastChatNoNode = removeNode(lastChatNoNode, 'lb-lazy', { identifier = identifier })
 
   if manifest.rerollBehavior == "remove-prev" then
@@ -766,63 +844,18 @@ local function reroll(identifier)
   end
 
   lastChatNoNode = lastChatNoNode:gsub("\n?<!%-%- End platform managed %-%->\n*", "\n")
-  local finalChat = removeNode(lastChatNoNode, 'lb-lazy', { identifier = identifier }) ..
-      "\n" .. result .. "\n<!-- End platform managed -->"
+  local cleanedChat = removeNode(lastChatNoNode, 'lb-lazy', { identifier = identifier })
 
-  setChat(triggerId, idx, finalChat)
+  local position = getGlobalVar(triggerId, "toggle_lightboard.position") or "0"
+  local finalChat
+  if position == "1" then
+    finalChat = result .. "\n<!-- End platform managed -->" .. "\n" .. cleanedChat
+  else
+    finalChat = cleanedChat .. "\n" .. result .. "\n<!-- End platform managed -->"
+  end
+
+  setChat(triggerId, idx, manifest.onMutation and manifest.onMutation(triggerId, 'reroll', finalChat) or finalChat)
 end
-
-onButtonClick = async(function(tid, code)
-  setTriggerId(tid)
-
-  local prefix = "lb%-reroll__"
-  local _, rerollPrefixEnd = string.find(code, prefix)
-
-  if rerollPrefixEnd then
-    local identifier = code:sub(rerollPrefixEnd + 1)
-    if identifier == "" then
-      return
-    end
-
-    addChat(tid, 'char',
-      '<lb-rerolling><div class="lb-pending lb-rerolling"><span class="lb-pending-note">' ..
-      identifier .. ' 재생성 중, 채팅을 보내거나 다른 모듈을 재생성하지 마세요...</span></div></lb-rerolling>')
-
-    local success, result = pcall(reroll, identifier)
-    if not success then
-      alertError(tid, "[LightBoard] Failed at onButtonClick: " .. tostring(result))
-    end
-
-    removeChat(tid, -1)
-    return
-  end
-
-  prefix = "lb%-interaction__"
-  local _, interactionPrefixEnd = string.find(code, prefix)
-
-  if interactionPrefixEnd then
-    local body = code:sub(interactionPrefixEnd + 1)
-    if body == "" then
-      return
-    end
-
-    local firstSeparator = body:find("__", 1, true)
-    if not firstSeparator then
-      return
-    end
-
-    local identifier = body:sub(1, firstSeparator - 1)
-    local action = body:sub(firstSeparator + 2)
-
-    if identifier == "" or action == "" then
-      return
-    end
-
-    addChat(tid, 'user',
-      '<lb-interaction-identifier>' ..
-      identifier .. '</lb-interaction-identifier>\n<lb-interaction-action>' .. action .. '</lb-interaction-action>')
-  end
-end)
 
 --- @type fun(manifest: Manifest, fullChat: Chat[], action: string, direction: string): Promise<string?>
 local runInteractionAsync = async(function(manifest, fullChat, action, direction)
@@ -855,7 +888,8 @@ end)
 ---@param identifier string
 ---@param action string
 ---@param direction string
-local function interact(fullChat, identifier, action, direction)
+---@param startOffset number offset from #fullChat where to start looking for last char chat
+local function interact(fullChat, identifier, action, direction, startOffset)
   local mode = getGlobalVar(triggerId, "toggle_lightboard.mode") or "O"
   if mode == "0" then
     alertError(triggerId, "[LightBoard] 상호작용 전에 백엔드의 모델을 활성화해주세요.")
@@ -881,9 +915,9 @@ local function interact(fullChat, identifier, action, direction)
   end
 
   local lastCharChat = nil
-  local idx = -3
-  -- #fullChat -> direction / identifier + locator
-  for i = #fullChat - 2, math.max(#fullChat - 6, 1), -1 do
+  local idx = startOffset
+  local searchStart = #fullChat + startOffset + 1
+  for i = searchStart, math.max(searchStart - 4, 1), -1 do
     if fullChat[i].role == "char" then
       lastCharChat = fullChat[i]
       break
@@ -898,7 +932,13 @@ local function interact(fullChat, identifier, action, direction)
 
   local lastChatFull = lastCharChat.data
 
-  local promise = runInteractionAsync(manifest, { table.unpack(fullChat, 1, #fullChat + idx + 1) }, action, direction)
+  local modifiers = parseInteractionModifiers(action)
+
+  local promise = runInteractionAsync(
+    manifest,
+    { table.unpack(fullChat, 1, #fullChat + idx + 1) },
+    modifiers.action,
+    direction)
   local success, result = pcall(function()
     return promise:await()
   end)
@@ -912,11 +952,106 @@ local function interact(fullChat, identifier, action, direction)
   if not result or result == null then
     alertError(triggerId, "[LightBoard] 상호작용 불가. 모델 응답이 비어있거나 null입니다.")
   elseif result then
-    local lastChatNoNode = removeNode(lastChatFull, identifier)
-    local finalChat = lastChatNoNode .. "\n" .. result .. "\n"
-    setChat(triggerId, idx, finalChat)
+    local lastChatNoNode
+    if modifiers.preserve then
+      lastChatNoNode = lastChatFull
+    else
+      lastChatNoNode = removeNode(lastChatFull, identifier, modifiers.blockID and { id = modifiers.blockID } or nil)
+    end
+
+    local position = getGlobalVar(triggerId, "toggle_lightboard.position") or "0"
+    local finalChat
+    if position == "1" then
+      finalChat = result .. "\n\n" .. lastChatNoNode
+    else
+      finalChat = lastChatNoNode .. "\n" .. result .. "\n"
+    end
+
+    setChat(triggerId, idx, manifest.onMutation and manifest.onMutation(triggerId, 'interaction', finalChat) or finalChat)
   end
 end
+
+onButtonClick = async(function(tid, code)
+  setTriggerId(tid)
+
+  local prefix = "lb%-reroll__"
+  local _, rerollPrefixEnd = string.find(code, prefix)
+
+  if rerollPrefixEnd then
+    local fullIdentifier = code:sub(rerollPrefixEnd + 1)
+    if fullIdentifier == "" then
+      return
+    end
+
+    local hashPos = fullIdentifier:find("#", 1, true)
+    local identifier, blockID
+    if hashPos then
+      identifier = fullIdentifier:sub(1, hashPos - 1)
+      blockID = fullIdentifier:sub(hashPos + 1)
+      if blockID == "" then
+        blockID = nil
+      end
+    else
+      identifier = fullIdentifier
+      blockID = nil
+    end
+
+    addChat(tid, 'char',
+      '<lb-rerolling><div class="lb-pending lb-rerolling"><span class="lb-pending-note">' ..
+      fullIdentifier .. ' 재생성 중, 채팅을 보내거나 다른 모듈을 재생성하지 마세요...</span></div></lb-rerolling>')
+
+    local success, result = pcall(reroll, identifier, blockID)
+    if not success then
+      alertError(tid, "[LightBoard] Failed at onButtonClick: " .. tostring(result))
+    end
+
+    removeChat(tid, -1)
+    return
+  end
+
+  prefix = "lb%-interaction__"
+  local _, interactionPrefixEnd = string.find(code, prefix)
+
+  if interactionPrefixEnd then
+    local body = code:sub(interactionPrefixEnd + 1)
+    if body == "" then
+      return
+    end
+
+    local firstSeparator = body:find("__", 1, true)
+    if not firstSeparator then
+      return
+    end
+
+    local identifier = body:sub(1, firstSeparator - 1)
+    local action = body:sub(firstSeparator + 2)
+
+    if identifier == "" or action == "" then
+      return
+    end
+
+    local modifiers = parseInteractionModifiers(action)
+
+    if modifiers.immediate then
+      addChat(tid, 'char',
+        '<lb-rerolling><div class="lb-pending lb-rerolling"><span class="lb-pending-note">' ..
+        identifier .. ' 상호작용 중, 채팅을 보내거나 다른 작업을 하지 마세요...</span></div></lb-rerolling>')
+
+      local fullChat = getFullChat(tid)
+      -- #fullChat = pending message, #fullChat-1 = last char chat to modify
+      local success, result = pcall(interact, fullChat, identifier, action, "", -2)
+      if not success then
+        alertError(tid, "[LightBoard] Failed at immediate interaction: " .. tostring(result))
+      end
+
+      removeChat(tid, -1)
+    else
+      addChat(tid, 'user',
+        '<lb-interaction-identifier>' ..
+        identifier .. '</lb-interaction-identifier>\n<lb-interaction-action>' .. action .. '</lb-interaction-action>')
+    end
+  end
+end)
 
 onStart = async(function(tid)
   local mode = getGlobalVar(tid, "toggle_lightboard.mode") or "0"
@@ -947,7 +1082,8 @@ onStart = async(function(tid)
 
   stopChat(tid)
 
-  local success, result = pcall(interact, fullChat, identifier.content, action.content, direction)
+  -- #fullChat = direction, #fullChat-1 = identifier+action, #fullChat-2 = last char chat to modify)
+  local success, result = pcall(interact, fullChat, identifier.content, action.content, direction, -3)
   if success then
     removeChat(tid, -2)
     removeChat(tid, -1)

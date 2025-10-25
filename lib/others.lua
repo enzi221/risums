@@ -1,5 +1,9 @@
 --- @meta
 
+--- @param triggerId string
+--- @return string
+function getDescription(triggerId) end
+
 --- @class LoreBook
 --- @field alwaysActive boolean
 --- @field comment string
