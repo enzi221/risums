@@ -70,8 +70,9 @@ end
 ---Extracts contents between all [Tag] ... [Tag].
 ---@param tag string
 ---@param content string
+---@param tagToEnd string[]?
 ---@return string[]
-local function extractBlocks(tag, content)
+local function extractBlocks(tag, content, tagToEnd)
   local results = {}
   local openTag = "[" .. tag .. "]"
   local pos = 1
@@ -82,14 +83,32 @@ local function extractBlocks(tag, content)
 
     -- find next occurrence of the same tag
     local nextS = content:find(openTag, e + 1, true)
+    local blockContent
     if nextS then
-      table.insert(results, content:sub(e + 1, nextS - 1))
+      blockContent = content:sub(e + 1, nextS - 1)
       pos = nextS
     else
       -- last segment
-      table.insert(results, content:sub(e + 1))
-      break
+      blockContent = content:sub(e + 1)
     end
+
+    -- Apply tagToEnd logic
+    if type(tagToEnd) == "table" then
+      for _, endTag in ipairs(tagToEnd) do
+        if endTag and endTag ~= "" then
+          local currentPattern = "%[" .. endTag:gsub("(%W)", "%%%1") .. "%]"
+          local tagStartMatch = blockContent:find(currentPattern)
+          if tagStartMatch then
+            blockContent = blockContent:sub(1, tagStartMatch - 1)
+            break
+          end
+        end
+      end
+    end
+
+    table.insert(results, blockContent)
+
+    if not nextS then break end
   end
 
   return results

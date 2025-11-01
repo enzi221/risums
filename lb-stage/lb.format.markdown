@@ -1,0 +1,6 @@
+<lightboard-stage>
+[Premise]Title:...|Content:...|Stage:...
+[Episode]Title:...|Content:...|Stage:...|Done:false
+[Episode]Title:...|Content:...|Stage:...|Done:true
+[Guidance]Content:...
+</lightboard-stage>

@@ -35,6 +35,11 @@ function getState(triggerId, varName) end
 
 --- @param triggerId string
 --- @param varName string
+--- @return string
+function getChatVar(triggerId, varName) end
+
+--- @param triggerId string
+--- @param varName string
 --- @param value string
 function setChatVar(triggerId, varName, value) end
 

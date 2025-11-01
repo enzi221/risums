@@ -264,6 +264,8 @@ end
 --- @field identifier string
 --- @field lazy boolean
 --- @field loreBooks boolean
+--- @field maxCtx number?
+--- @field maxLogs number?
 --- @field mode '1'|'2'
 --- @field multilingual boolean
 --- @field personaDesc boolean
@@ -324,6 +326,18 @@ local function getManifests(globalMode)
         tbl.lazy = getGlobalVar(triggerId, "toggle_" .. identifier .. ".lazy") == "1"
       else
         tbl.lazy = tbl.lazy == "true"
+      end
+
+      if not tbl.maxCtx then
+        tbl.maxCtx = tonumber(getGlobalVar(triggerId, "toggle_" .. identifier .. ".maxCtx")) or nil
+      else
+        tbl.maxCtx = tonumber(tbl.maxCtx) or nil
+      end
+
+      if not tbl.maxLogs then
+        tbl.maxLogs = tonumber(getGlobalVar(triggerId, "toggle_" .. identifier .. ".maxLogs")) or nil
+      else
+        tbl.maxLogs = tonumber(tbl.maxLogs) or nil
       end
 
       if not tbl.multilingual then
@@ -513,7 +527,8 @@ local function makePrompt(manifest, log, type, extras)
   end
 
   -- Overridable via toggle, min = reserve
-  local maxCtxLenToggle = math.max(tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxCtx")) or reserve, reserve)
+  local maxCtxLenToggle = math.max(
+  manifest.maxCtx or tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxCtx")) or reserve, reserve)
 
   -- reserve ~ value ~ max
   maxCtxLen = math.max(reserve, math.min(maxCtxLen, maxCtxLenToggle))
@@ -557,7 +572,7 @@ local function makePrompt(manifest, log, type, extras)
   local logsToAdd = {}
 
   local userChatsAllowed = getGlobalVar(triggerId, "toggle_lightboard.noUser") ~= "1"
-  local maxLogs = math.max(1, tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxLogs")) or 4)
+  local maxLogs = math.max(1, manifest.maxLogs or tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxLogs")) or 4)
 
   -- This takes user chat exclusion into account
   local indexAdjusted = #log + 1
@@ -573,7 +588,6 @@ local function makePrompt(manifest, log, type, extras)
     local text = removeTaggedContent(log[i].data, identifier)
     if manifest.onInput then
       local success, modifiedText = pcall(manifest.onInput, triggerId, text, indexAdjusted - i)
-      print(success, modifiedText)
       if success then
         text = modifiedText
       else
@@ -843,13 +857,19 @@ local function reroll(identifier, blockID)
     return
   end
 
-  lastChatNoNode = lastChatNoNode:gsub("\n?<!%-%- End platform managed %-%->\n*", "\n")
+  local position = getGlobalVar(triggerId, "toggle_lightboard.position") or "0"
+
+  if position == "1" then
+    lastChatNoNode = lastChatNoNode:gsub("\n?<!%-%- Platform managed do not generate %-%->\n*", "\n")
+  else
+    lastChatNoNode = lastChatNoNode:gsub("\n?<!%-%- End platform managed %-%->\n*", "\n")
+  end
+
   local cleanedChat = removeNode(lastChatNoNode, 'lb-lazy', { identifier = identifier })
 
-  local position = getGlobalVar(triggerId, "toggle_lightboard.position") or "0"
   local finalChat
   if position == "1" then
-    finalChat = result .. "\n<!-- End platform managed -->" .. "\n" .. cleanedChat
+    finalChat = "<!-- Platform managed do not generate -->\n" .. result .. cleanedChat
   else
     finalChat = cleanedChat .. "\n" .. result .. "\n<!-- End platform managed -->"
   end
@@ -952,6 +972,8 @@ local function interact(fullChat, identifier, action, direction, startOffset)
   if not result or result == null then
     alertError(triggerId, "[LightBoard] 상호작용 불가. 모델 응답이 비어있거나 null입니다.")
   elseif result then
+    local position = getGlobalVar(triggerId, "toggle_lightboard.position") or "0"
+
     local lastChatNoNode
     if modifiers.preserve then
       lastChatNoNode = lastChatFull
@@ -959,12 +981,17 @@ local function interact(fullChat, identifier, action, direction, startOffset)
       lastChatNoNode = removeNode(lastChatFull, identifier, modifiers.blockID and { id = modifiers.blockID } or nil)
     end
 
-    local position = getGlobalVar(triggerId, "toggle_lightboard.position") or "0"
+    if position == "1" then
+      lastChatNoNode = lastChatNoNode:gsub("\n?<!%-%- Platform managed do not generate %-%->\n*", "\n")
+    else
+      lastChatNoNode = lastChatNoNode:gsub("\n?<!%-%- End platform managed %-%->\n*", "\n")
+    end
+
     local finalChat
     if position == "1" then
-      finalChat = result .. "\n\n" .. lastChatNoNode
+      finalChat = "<!-- Platform managed do not generate -->\n" .. result .. lastChatNoNode
     else
-      finalChat = lastChatNoNode .. "\n" .. result .. "\n"
+      finalChat = lastChatNoNode .. "\n" .. result .. "\n<!-- End platform managed -->"
     end
 
     setChat(triggerId, idx, manifest.onMutation and manifest.onMutation(triggerId, 'interaction', finalChat) or finalChat)
