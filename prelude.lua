@@ -18,6 +18,20 @@ local function setTriggerId(tid)
 end
 ]]
 
+---@param triggerId string
+---@param moduleName string
+---@return any
+local function import(triggerId, moduleName)
+  local source = getLoreBooks(triggerId, moduleName)
+  if not source or #source == 0 then
+    error('Failed to load module: ' .. moduleName)
+  end
+  local chunk, err = load(source[1].content, '@' .. moduleName, 't')
+  if not chunk then
+    error('Error loading module ' .. moduleName .. ': ' .. err)
+  end
+  return chunk()
+end
 
 ---@param str string
 ---@return string
@@ -318,6 +332,7 @@ _ENV.prelude = {
   extractBlocks = extractBlocks,
   extractNodes = extractNodes,
   getPriorityLoreBook = getPriorityLoreBook,
+  import = import,
   killGuim = killGuim,
   parseBlock = parseBlock,
   split = split,
