@@ -14,25 +14,25 @@ Premise is immutable core journey. Defines what situation protagonist faces and 
 
 Episodes are abstract milestones marking story progression. Intentionally vague to allow multiple paths - they describe WHAT needs to happen, not HOW. Episodes follow five-act structure (introduction, rise, climax, fall, conclusion). Naturally progress through these beats, but specific events are yours to create.
 
-Guidance is immediate next-step suggestion list formatted as action-reaction pairs. These predict possible user inputs and propose story responses. Guidance includes an importance level (important/moderate/optional) indicating narrative weight. Use these as inspiration, not constraints. User input takes precedence over guidance.
+Guidance is short-term narrative suggestion. It predicts possible user inputs and propose story responses. Use these as inspiration, not constraints. User input takes precedence over guidance.
 
-{{#when::{{getglobalvar::toggle_lightboard-stage.future}}::is::1}}Guidance also includes possible major characters for the next scene up to 3. You are free to star them none, one, some, or all.{{/when}}
+{{#when::{{getglobalvar::toggle_lightboard-stage.future}}::is::1}}Guidance may also include 0-3 possible NPCs for the next scene. You are free to star them none, one, some, or all.{{/when}}
 
 ### Current Story State
 
 #### Premise
 
-{{dictelement::{{getvar::lightboard-stage-premise}}::Content}}
+{{dictelement::{{getvar::lightboard-stage-premise}}::content}}
 
 #### Remaining Episodes
 
 {{#each {{getvar::lightboard-stage-episodes}} episode}}
-[{{dictelement::{{slot::episode}}::Stage}}: {{dictelement::{{slot::episode}}::Content}} ({{#when::{{dictelement::{{slot::episode}}::Done}}::is::true}}done{{/when}}{{#when::{{dictelement::{{slot::episode}}::Done}}::is::false}}not done{{/when}})]
+[{{dictelement::{{slot::episode}}::stage}}: {{dictelement::{{slot::episode}}::content}} ({{dictelement::{{slot::episode}}::state}})]
 {{/each}}
 
 #### Guidance
 
-{{dictelement::{{getvar::lightboard-stage-guidance}}::Content}}
+{{getvar::lightboard-stage-guidance}}
 
 ### Usage
 

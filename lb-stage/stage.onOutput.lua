@@ -2,12 +2,17 @@ local triggerId = ''
 
 local function setTriggerId(tid)
   triggerId = tid
-  if type(prelude) ~= 'nil' then return end
+  if type(prelude) ~= 'nil' then
+    prelude.import(triggerId, 'toon.decode')
+    return
+  end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
   if not source or #source == 0 then
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
+
+  prelude.import(triggerId, 'toon.decode')
 end
 
 -- Base64 encoding function (helper)
@@ -37,9 +42,7 @@ local function xor(str)
   return base64Encode(bytes)
 end
 
-function onOutput(triggerId, output)
-  setTriggerId(triggerId)
-
+local function main(output)
   if not string.find(output, '</lightboard%-stage>') then
     output = output .. '\n</lightboard-stage>'
   end
@@ -54,41 +57,30 @@ function onOutput(triggerId, output)
     return ''
   end
 
-  local premise = {}
-  local premiseBlocks = prelude.extractBlocks('Premise', body.content, { 'Episode', 'Guidance' })
-  if #premiseBlocks == 0 then
-    return ''
+  local data = prelude.toon.decode(body.content)
+  local deepEncodedEpisodes = {}
+  for _, episode in ipairs(data.episodes) do
+    table.insert(deepEncodedEpisodes, json.encode(episode))
   end
-  premise = prelude.parseBlock(premiseBlocks[1])
-
-  local episodes = {}
-  local episodeBlocks = prelude.extractBlocks('Episode', body.content, { 'Guidance' })
-  if #episodeBlocks == 0 then
-    return ''
-  end
-  for _, episodeBlock in ipairs(episodeBlocks) do
-    table.insert(episodes, json.encode(prelude.parseBlock(episodeBlock)))
-  end
-
-  local guidance = {}
-  local guidanceBlocks = prelude.extractBlocks('Guidance', body.content)
-  if #guidanceBlocks == 0 then
-    return ''
-  end
-  guidance = prelude.parseBlock(guidanceBlocks[1])
-
-  local val = {
-    premise = premise,
-    episodes = episodes,
-    guidance = guidance
-  }
 
   setChatVar(triggerId, 'lightboard-stage-key', triggerId)
-  setChatVar(triggerId, 'lightboard-stage-premise', json.encode(premise))
-  setChatVar(triggerId, 'lightboard-stage-episodes', json.encode(episodes))
-  setChatVar(triggerId, 'lightboard-stage-guidance', json.encode(guidance))
+  setChatVar(triggerId, 'lightboard-stage-premise', json.encode(data.premise))
+  setChatVar(triggerId, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes))
+  setChatVar(triggerId, 'lightboard-stage-guidance', data.guidance)
 
-  return '<lightboard-stage key="' .. triggerId .. '">' .. xor(json.encode(val)) .. '</lightboard-stage>'
+  return '<lightboard-stage key="' .. triggerId .. '">' .. xor(json.encode(data)) .. '</lightboard-stage>'
+end
+
+function onOutput(triggerId, output)
+  setTriggerId(triggerId)
+
+  local success, result = pcall(main, output)
+  if success then
+    return result
+  else
+    print("[LightBoard] Stage output failed:", tostring(result))
+    return output
+  end
 end
 
 return onOutput

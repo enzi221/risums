@@ -2,7 +2,7 @@
 
 Premise defines overall mood and direction of current flow of narrative.
 
-Each new "main arc" premise shall follow five-act structure: Exposition, Development, Climax, Falling Action, Conclusion. Standard main arcs generated without prior story should have 10 episodes. Subsequent main arcs can be shorter.
+Each new "main arc" premise shall follow five-act structure: Exposition, Development, Climax, Falling Action, Conclusion. Standard main arcs should have {{#when::{{getglobalvar::toggle_lightboard-stage.length}}::is::0}}around 5-7 episodes.{{/when}}{{#when::{{getglobalvar::toggle_lightboard-stage.length}}::is::1}}around 7-10 episodes.{{/when}}{{#when::{{getglobalvar::toggle_lightboard-stage.length}}::is::2}}around 10-14 episodes.{{/when}}
 
 When current premise concludes or invalidated, generate anew with fresh episodes. If main arc premise concluded, or invalidated after high intensity, generate a new short, relaxed Epilogue premise for break unless forced intensity continues. Generate less episodes. Epilogue may skip many stages.
 
@@ -37,11 +37,10 @@ Good examples:
 - A young mother and her son survive being trapped by rabid dogs
   - Resolution: survive (clear endpoint, no user choice involved)
 
-User choice doesn't have to be at the last episode but in either climax (if any) or conclusion.
+The key decision doesn't only have to be at the last episode but also climax (if any).
 
 {{#when {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-stage.mood}} }} }} > 0 }} }}
-User specified direction for new premise:
-{{getglobalvar::toggle_lightboard-stage.mood}}
+User specified premise direction (prioritize over everything): "{{getglobalvar::toggle_lightboard-stage.mood}}"
 {{/when}}
 
 ### Episodes
@@ -58,7 +57,7 @@ Climax doesn't have to be about external conflicts. Small but distinct bumps in 
 
 ### Guidance
 
-Suggestions to guide the next immediate story toward the next episode. Predict user input, list possible story reactions. {{#when::{{getglobalvar::toggle_lightboard-stage.future}}::is::1}}Also list possible major characters (EXPLICITLY PROVIDED IN UNIVERSE SETTINGS) for the next scene up to 3 except {{user}}. Actively suggest new characters.{{/when}}
+Provide ongoing narrative tracking and suggestions to guide the story toward the next episode in short term. Predict user input, list possible story reactions.
 
 Each new guidance should actively progress the story to the next milestone but not necessarily complete it at one shot.
 
@@ -70,18 +69,18 @@ Do not include "analyze", "logics", or any other similar terms in any guidance.
 
 ## Premise
 
-{{dictelement::{{getvar::lightboard-stage-premise}}::Title}}
-{{dictelement::{{getvar::lightboard-stage-premise}}::Content}}
+{{dictelement::{{getvar::lightboard-stage-premise}}::title}}
+{{dictelement::{{getvar::lightboard-stage-premise}}::content}}
 
 ## Episodes
 
 {{#each {{getvar::lightboard-stage-episodes}} episode}}
-[{{dictelement::{{slot::episode}}::Stage}}, {{dictelement::{{slot::episode}}::Title}}: {{dictelement::{{slot::episode}}::Content}} ({{#when::{{dictelement::{{slot::episode}}::Done}}::is::true}}done{{/when}}{{#when::{{dictelement::{{slot::episode}}::Done}}::is::false}}not done{{/when}})]
+[{{dictelement::{{slot::episode}}::stage}}, {{dictelement::{{slot::episode}}::title}}: {{dictelement::{{slot::episode}}::content}} ({{dictelement::{{slot::episode}}::state}})]
 {{/each}}
 
 ## Guidance
 
-{{dictelement::{{getvar::lightboard-stage-guidance}}::Content}}
+{{getvar::lightboard-stage-guidance}}
 {{:else}}
 None. Generate new set.
 {{/when}}
@@ -90,24 +89,29 @@ None. Generate new set.
 
 ```
 <lightboard-stage>
-[Premise]Title:The Coffeehouse at the End of Spring|Content:Burnt-out pastry chef must decide whether to restore the countryside cafe to life or close it for good|Stage: main
-[Episode]Title:1. Falling Leaves|Content:Protagonist arrives at the cafe, reflecting on past decisions|Stage:introduction|Done:false
-[Episode]Title:2. First Impressions|Content: The cafe's current state and its place in the community become apparent|Stage:rise|Done:false
-[Guidance]Content:Assess the cafe's reputation. If something, something. If something else, other thing. If something different, different thing. Starring: A, B, C.
+premise:
+  title: The Coffeehouse at the End of Spring
+  content: Burnt-out pastry chef must decide whether to restore the countryside cafe to life or close it for good
+  stage: main
+episodes[2|]{content|stage|state|title}:
+  Protagonist arrives at the cafe, reflecting on past decisions|introduction|done|1. Falling Leaves
+  The cafe's current state and its place in the community become apparent|rise|ongoing|2. First Impressions
+guidance: Episode 1 ongoing for 2 turns. Assess the cafe's reputation. If something, something. If something else, other thing. If something different, different thing.
 </lightboard-stage>
 ```
 
-Key syntax:
-
 - Use `<lightboard-stage>`.
-- `Title`: short title.
-- `Content`: main text body.
-- Premise `Stage`: `main`, `epilogue`.
-- Episode `Stage`: `introduction`, `rise`, `climax`, `fall`, `conclusion`.
-- `Done`: `true` or `false`. When newly generated, must be `false`. Skipped episodes are `true`.
-- Divide each field with `|`.
+- Output in TOON format (2-space indent, array show length, separate fields by `|`).
+- title: short novel-like title.
+- content: main text body.
+- premise stage: enum `main`, `epilogue`.
+- episode stage: enum `introduction`, `rise`, `climax`, `fall`, `conclusion`.
+- episode state: enum `pending`, `ongoing`, `done`, `skipped`. Only one episode can be ongoing. Newly generated: pending or ongoing.
+- guidance content: Story state (premise or episode began, MUST include episode turn count), goal, user action predictions.
 - Close `</lightboard-stage>`.
 
-Guidance should first state which "goal" it seeks. It then should list 3 user actions as action-reaction pairs, formatted as `If action, then reaction. If action, then reaction. If action, then reaction.`
+STRICTLY ADHERE TO THE FORMAT. DO NOT ALTER ENUMS FOR ARRAY FORMAT.
 
-All `Content` must be brief, laconic, telegraphic style. No extra flourishes.
+Guidance should list 3 user actions as action reaction pairs, formatted as "If action, then reaction. If action, then reaction. If action, then reaction."
+
+All content fields: Brief, laconic. No line breaks within fields. Write in English.

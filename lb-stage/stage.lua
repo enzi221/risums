@@ -1,13 +1,23 @@
+--- Copyright (c) 2025 amonamona
+--- CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+--- LightBoard Stage
+
 local triggerId = ''
 
 local function setTriggerId(tid)
   triggerId = tid
-  if type(prelude) ~= 'nil' then return end
+  if type(prelude) ~= 'nil' then
+    prelude.import(triggerId, 'toon.decode')
+    return
+  end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
   if not source or #source == 0 then
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
+
+  prelude.import(triggerId, 'toon.decode')
 end
 
 -- Base64 decoding function (helper)
@@ -63,67 +73,79 @@ local function main(data)
     return data
   end
 
+  local nextEpisode = nil
   local nextEpisode_e = nil
   local episodes_es = {}
-  for _, episodeRaw in ipairs(episodes) do
-    local isNextEpisode = false
-    local episode = json.decode(episodeRaw)
-
-    if not nextEpisode_e and episode.Done ~= 'true' then
-      isNextEpisode = true
+  for _, episode in ipairs(episodes) do
+    if not nextEpisode and (episode.state == 'ongoing' or episode.state == 'pending') then
+      nextEpisode = episode
       nextEpisode_e = h.div {
-        h.h3 { episode.Title },
-        h.p { episode.Content },
+        h.h3 { episode.title },
+        h.p { episode.content },
       }
     end
 
     table.insert(episodes_es, h.div {
       h.h3 {
-        '[' .. episode.Stage .. '] ',
-        episode.Title,
+        '[' .. episode.stage .. '] ',
+        episode.title,
         h.span {
-          episode.Done == 'true' and ' (done)' or isNextEpisode and ' (next)' or '',
+          ' (' .. episode.state .. ')'
         }
       },
       h.p {
-        episode.Content,
+        episode.content,
       }
     })
   end
 
   local id = 'lb-stage-' .. math.random()
 
+  local playing = premise.title .. (nextEpisode and ' - ' .. nextEpisode.title or '')
+
   local html = h.div['lb-module-root'] {
     data_id = 'lightboard-stage',
     h.button['lb-stage-entry'] {
       popovertarget = id,
       type = 'button',
-      h.span { premise.Title },
-      h.span { premise.Title },
+      h.span['lb-stage-entry-window'] {
+        h.span['lb-stage-entry-roller'] {
+          h.span { playing },
+          h.span { playing },
+        }
+      }
     },
     h.dialog['lb-dialog lb-stage-dialog'] {
       id = id,
       popover = '',
-      h.h1 {
-        premise.Title,
-      },
-      h.p {
-        premise.Content,
-      },
       h.div {
-        nextEpisode_e,
+        style = 'float: right;',
+        h.button['lb-reroll'] {
+          risu_btn = "lb-interaction__lightboard-stage__Regenerate",
+          type = 'button',
+          h.lb_reroll_icon { closed = true }
+        },
+      },
+      h.h1['lb-stage-premise'] {
+        premise.title,
       },
       h.p {
-        guidance.Content,
+        premise.content,
+      },
+      h.h2 {
+        'Ongoing Episode',
+      },
+      nextEpisode_e,
+      h.details {
+        h.summary 'Guidance (Spoilers)',
+        h.p {
+          guidance,
+        },
       },
       h.details {
+        h.summary 'All Episodes (Spoilers)',
         episodes_es,
       },
-    },
-    h.button['lb-reroll'] {
-      risu_btn = "lb-interaction__lightboard-stage__Regenerate",
-      type = 'button',
-      h.lb_reroll_icon { closed = true }
     },
   }
 
@@ -148,11 +170,19 @@ listenEdit(
     else
       print("[LightBoard] Stage display failed:", tostring(result))
     end
+
+    return data
   end
 )
 
 onStart = async(function(tid)
   setTriggerId(tid)
+
+  local currentKey = getChatVar(tid, 'lightboard-stage-key')
+
+  if not currentKey or currentKey == '' then
+    return
+  end
 
   -- Find the nearest chat with <lightboard-stage-x>
   local fullChat = getFullChat(tid)
@@ -171,10 +201,11 @@ onStart = async(function(tid)
     setChatVar(tid, 'lightboard-stage-premise', '')
     setChatVar(tid, 'lightboard-stage-episodes', '')
     setChatVar(tid, 'lightboard-stage-guidance', '')
+
+    stopChat(tid)
+    alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")
     return
   end
-
-  local currentKey = getChatVar(tid, 'lightboard-stage-key')
 
   local stageNodes = prelude.extractNodes('lightboard-stage', stageChat.data)
   if #stageNodes == 0 then
@@ -184,20 +215,24 @@ onStart = async(function(tid)
   local stageNode = stageNodes[1]
   local extractedKey = stageNode.attributes.key
 
-  if not extractedKey then
-    return
-  end
-
-  if currentKey == extractedKey then
+  if not extractedKey or currentKey == extractedKey then
     return
   end
 
   -- Keys don't match, need to update variables
   local decrypted = xordecrypt(stageNode.content)
+
   local data = json.decode(decrypted)
+  local deepEncodedEpisodes = {}
+  for _, episode in ipairs(data.episodes) do
+    table.insert(deepEncodedEpisodes, json.encode(episode))
+  end
 
   setChatVar(tid, 'lightboard-stage-key', extractedKey)
   setChatVar(tid, 'lightboard-stage-premise', json.encode(data.premise) or '')
-  setChatVar(tid, 'lightboard-stage-episodes', json.encode(data.episodes) or '')
-  setChatVar(tid, 'lightboard-stage-guidance', json.encode(data.guidance) or '')
+  setChatVar(tid, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes) or '')
+  setChatVar(tid, 'lightboard-stage-guidance', data.guidance or '')
+
+  stopChat(tid)
+  alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")
 end)
