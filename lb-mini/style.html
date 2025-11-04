@@ -11,7 +11,8 @@
     --theme:
       {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=0 }} }}'♦️'{{/if}}
       {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=1 }} }}'💎'{{/if}}
-      {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=2 }} }}'✨'{{/if}};
+      {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=2 }} }}'✨'{{/if}}
+      {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=3 }} }}'🌳'{{/if}};
   }
 
   [data-id='lightboard-miniboard'] > * {
@@ -196,6 +197,60 @@
         #9932ccff 75%,
         #4169e1ff 88%,
         #191970ff 100%
+      );
+    }
+  }
+
+  @container style(--theme: '🌳') and style(--darkness: 0) {
+    [data-id='lightboard-miniboard'] > * {
+      --bg: #fafbf9;
+      --bg-2: #f0f2ee;
+      --border: #d4e7c5;
+      --fg: #1c321a;
+      --fg-2: #5a7c59;
+      --point: #4caf50;
+
+      --prefix: var(--theme);
+
+      /* nature green rainbow gradient */
+      --rainbow: radial-gradient(
+        circle farthest-corner at 100% 100%,
+        #e8f5e9ff 0%,
+        #a5d6a7ff 10%,
+        #66bb6aff 20%,
+        #43a047ff 30%,
+        #2e7d32ff 42%,
+        #1b5e20ff 55%,
+        #827717ff 68%,
+        #9e9d24ff 82%,
+        #689f38ff 100%
+      );
+    }
+  }
+
+  @container style(--theme: '🌳') and style(--darkness: 1) {
+    [data-id='lightboard-miniboard'] > * {
+      --bg: #1c1f1b;
+      --bg-2: #272a26;
+      --border: #3a4a38;
+      --fg: #e8f5e9;
+      --fg-2: #c8e6c9;
+      --point: #81c784;
+
+      --prefix: var(--theme);
+
+      /* dark forest rainbow gradient */
+      --rainbow: radial-gradient(
+        circle farthest-corner at 100% 100%,
+        #263238ff 0%,
+        #37474fff 10%,
+        #455a64ff 22%,
+        #2e7d32ff 35%,
+        #388e3cff 48%,
+        #43a047ff 62%,
+        #558b2fff 75%,
+        #6b8e23ff 88%,
+        #556b2fff 100%
       );
     }
   }
