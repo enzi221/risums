@@ -11,7 +11,6 @@ Suggestion:
 7. Narrative Intensity, New Premise: Epilogue or Main
 8. Premise Theme
 9. User Action Prediction
-10. New Guidance
 
 {{#when::{{getglobalvar::toggle_lightboard-stage.diversity}}::is::1}}
 When generating new premise or guidance, write down 3 possible candidates for each. Each Candidate should be accompanied by the normalized likelihood score between 0.0 and 1.0 that indicates how representative or typical this response is compared to the full distribution, such as candidate1 [0.23], candidate2 [0.15]. Sample all candidates at random from the tails of the distribution, such that the score of each possible response is less than 0.001. After that, pick from the lowest [score] candidates. State which you selected.

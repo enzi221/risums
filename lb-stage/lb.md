@@ -2,13 +2,17 @@
 
 Premise defines overall mood and direction of current flow of narrative.
 
-Each new "main arc" premise shall follow five-act structure: Exposition, Development, Climax, Falling Action, Conclusion. Standard main arcs should have {{#when::{{getglobalvar::toggle_lightboard-stage.length}}::is::0}}around 5-7 episodes.{{/when}}{{#when::{{getglobalvar::toggle_lightboard-stage.length}}::is::1}}around 7-10 episodes.{{/when}}{{#when::{{getglobalvar::toggle_lightboard-stage.length}}::is::2}}around 10-14 episodes.{{/when}}
+Each new "main arc" premise shall follow five-act structure: Exposition, Development, Climax, Falling Action, Conclusion. Main arcs should have {{dictelement::{"0":"5-7","1":"7-10","2":"10-14"}::{{getglobalvar::toggle_lightboard-stage.length}}}} episodes and consists of all five-act structures.
 
-When current premise concludes or invalidated, generate anew with fresh episodes. If main arc premise concluded, or invalidated after high intensity, generate a new short, relaxed Epilogue premise for break unless forced intensity continues. Generate less episodes. Epilogue may skip many stages.
+When current premise concludes or invalidated, generate anew with fresh episodes. If main arc premise concluded, generate new short, relaxed Epilogue premise for loosening. Same for invalidation while in intensity (unless it continues). Generate less episodes for epilogues; may skip structures.
 
-Accomplishing the final episode means conclusion of current premise.
+{{#when {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-stage.mood}} }} }} > 0 }} }}
+When generating anew: respect this user specified genre/direction (prioritize over everything): "{{getglobalvar::toggle_lightboard-stage.mood}}"
+{{/when}}
 
-You may skip some structure stages in episodes if genre or prior story suggests so. (e.g. mystery may go straight to Climax, romance comedy can skip Climax and Falling Action even in main arc)
+Finishing final episode means conclusion of current premise.
+
+Avoid invalidating premise for small recoverable deviations. If possible, prefer invalidating some episodes while keeping others and premise as-is without changes.
 
 ## Field Descriptions
 
@@ -16,10 +20,10 @@ You may skip some structure stages in episodes if genre or prior story suggests 
 
 One sentence defining story's core journey from beginning to end. Immutable. Must be achieved.
 
-Content must include who, when, what - Character, Situation, What they must confront/decide. (NOT what they choose)
+Content must include when and what - Situation, What {{user}} must confront/decide. (NOT what they choose)
 Must describe concrete situation AND its resolution/transformation. Not just setup - include endpoint.
 
-Premise MUST remain open-ended for user choices. Do NOT predetermine specific decisions or outcomes that user-controlled character will make. Focus on journey, not destination.
+Premise MUST remain open-ended for user choices. Do NOT predetermine specific decisions or outcomes that {{user}} will make. Focus on journey, not destination.
 
 Bad examples:
 
@@ -31,27 +35,23 @@ Bad examples:
 Good examples:
 
 - A detective discovers they themselves are the murderer they've been hunting
-  - Endpoint: discovers (not "what they do about it")
+  - Endpoint: discovers (not what they do about it)
 - An amnesiac city surveyor confronts conflicting truths about their past and decides who to stand with
   - Journey: confronts past, decides allegiance
 - A young mother and her son survive being trapped by rabid dogs
   - Resolution: survive (clear endpoint, no user choice involved)
 
-The key decision doesn't only have to be at the last episode but also climax (if any).
-
-{{#when {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-stage.mood}} }} }} > 0 }} }}
-User specified premise direction (prioritize over everything): "{{getglobalvar::toggle_lightboard-stage.mood}}"
-{{/when}}
+Place key decisions in climax or conclusion.
 
 ### Episodes
 
-Story beat list guiding narrative towards premise. Quantity may vary depending on the premise.
+Story beat list in {{user}}'s perspective, guiding narrative towards premise. Quantity may vary.
 
 Episodes should be abstract enough to allow multiple paths. Focus on WHAT needs to happen (milestones), not HOW it happens (specific events).
 
-Multiple episodes can be concluded at once. If premise's core user-decision lies in the middle of episode list renders rest of them irrelevant, those episodes may be skipped or regenerated. Otherwise, these should be immutable.
+Multiple episodes can be concluded at once. If narrative flow renders some episodes irrelevant, only those may be skipped or regenerated. Otherwise, episodes should be immutable.
 
-When regenerating whole premise, all episodes newly generated must be all `Done: false`.
+When regenerating due to premise invalidation, first episode must be ongoing, others pending.
 
 Climax doesn't have to be about external conflicts. Small but distinct bumps in character arcs can serve as climactic episodes.
 
@@ -64,6 +64,10 @@ Each new guidance should actively progress the story to the next milestone but n
 Do not include "analyze", "logics", or any other similar terms in any guidance.
 
 # Current State
+
+{{#when::{{getvar::lightboard-stage-raw}}::isnot::null}}
+{{getvar::lightboard-stage-raw}}
+{{:else}}
 
 {{#when::{{getvar::lightboard-stage-premise}}::isnot::null}}
 
@@ -83,6 +87,7 @@ Do not include "analyze", "logics", or any other similar terms in any guidance.
 {{getvar::lightboard-stage-guidance}}
 {{:else}}
 None. Generate new set.
+{{/when}}
 {{/when}}
 
 # Example

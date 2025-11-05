@@ -54,6 +54,7 @@ local function main(output)
   end
 
   if not body then
+    print('[LightBoard] No <lightboard-stage> block found')
     return ''
   end
 
@@ -64,11 +65,12 @@ local function main(output)
   end
 
   setChatVar(triggerId, 'lightboard-stage-key', triggerId)
+  setChatVar(triggerId, 'lightboard-stage-raw', body.content)
   setChatVar(triggerId, 'lightboard-stage-premise', json.encode(data.premise))
   setChatVar(triggerId, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes))
   setChatVar(triggerId, 'lightboard-stage-guidance', data.guidance)
 
-  return '<lightboard-stage key="' .. triggerId .. '">' .. xor(json.encode(data)) .. '</lightboard-stage>'
+  return '<lightboard-stage key="' .. triggerId .. '">' .. xor(body.content) .. '</lightboard-stage>'
 end
 
 function onOutput(triggerId, output)

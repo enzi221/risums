@@ -8,7 +8,7 @@ local triggerId = ''
 local function setTriggerId(tid)
   triggerId = tid
   if type(prelude) ~= 'nil' then
-    prelude.import(triggerId, 'toon.decode')
+    prelude.import(tid, 'toon.decode')
     return
   end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
@@ -16,8 +16,7 @@ local function setTriggerId(tid)
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
-
-  prelude.import(triggerId, 'toon.decode')
+  prelude.import(tid, 'toon.decode')
 end
 
 -- Base64 decoding function (helper)
@@ -63,7 +62,7 @@ local function main(data)
   end
 
   local node = nodes[1]
-  local content = json.decode(xordecrypt(node.content))
+  local content = prelude.toon.decode(xordecrypt(node.content))
 
   local premise = content.premise
   local episodes = content.episodes
@@ -198,6 +197,7 @@ onStart = async(function(tid)
 
   if not stageChat then
     setChatVar(tid, 'lightboard-stage-key', '')
+    setChatVar(tid, 'lightboard-stage-raw', '')
     setChatVar(tid, 'lightboard-stage-premise', '')
     setChatVar(tid, 'lightboard-stage-episodes', '')
     setChatVar(tid, 'lightboard-stage-guidance', '')
@@ -222,13 +222,14 @@ onStart = async(function(tid)
   -- Keys don't match, need to update variables
   local decrypted = xordecrypt(stageNode.content)
 
-  local data = json.decode(decrypted)
+  local data = prelude.toon.decode(decrypted)
   local deepEncodedEpisodes = {}
   for _, episode in ipairs(data.episodes) do
     table.insert(deepEncodedEpisodes, json.encode(episode))
   end
 
   setChatVar(tid, 'lightboard-stage-key', extractedKey)
+  setChatVar(tid, 'lightboard-stage-raw', decrypted)
   setChatVar(tid, 'lightboard-stage-premise', json.encode(data.premise) or '')
   setChatVar(tid, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes) or '')
   setChatVar(tid, 'lightboard-stage-guidance', data.guidance or '')

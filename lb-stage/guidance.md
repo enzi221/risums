@@ -8,17 +8,13 @@
 
 This guidance helps maintain narrative coherence while preserving your creative freedom.
 
-### Components
+Premise is immutable core journey. Defines what situation protagonist will face and what must be confronted or decided.
 
-Premise is immutable core journey. Defines what situation protagonist faces and what must be confronted or decided. This sets boundaries for the current narrative arc.
+Episodes are abstract milestones marking story progression. Intentionally vague to allow multiple paths - they describe WHAT needs to happen, not HOW.
 
-Episodes are abstract milestones marking story progression. Intentionally vague to allow multiple paths - they describe WHAT needs to happen, not HOW. Episodes follow five-act structure (introduction, rise, climax, fall, conclusion). Naturally progress through these beats, but specific events are yours to create.
+Guidance is short-term narrative suggestion. It predicts possible user inputs and propose story responses.
 
-Guidance is short-term narrative suggestion. It predicts possible user inputs and propose story responses. Use these as inspiration, not constraints. User input takes precedence over guidance.
-
-{{#when::{{getglobalvar::toggle_lightboard-stage.future}}::is::1}}Guidance may also include 0-3 possible NPCs for the next scene. You are free to star them none, one, some, or all.{{/when}}
-
-### Current Story State
+### Current State
 
 #### Premise
 
@@ -36,13 +32,14 @@ Guidance is short-term narrative suggestion. It predicts possible user inputs an
 
 ### Usage
 
-Premise remains constant until its conclusion unless totally invalidated. Aim for it following episodes.
+Premise remains constant until its conclusion unless totally invalidated. Aim for it while progressing through episodes.
 
-After reaching premise end, stop the narrative there without further progression.
+Episodes state where they fall in: Exposition, Development, Climax, Falling Action, Conclusion. Narrative intensity should rise towards climax and resolve by conclusion.
+Naturally progress through episodes toward premise, but specific events are yours to create. Multiple episodes can be achieved at once.
 
-Multiple episodes can be achieved at once.
+After premise conclusion, stop output and wait for guidance update.
 
-Episodes state where they fall in five-act story structure: Exposition, Development, Climax, Falling Action, Conclusion. Narrative intensity should rise towards climax and resolve by conclusion.
+This system is inspiration, not constraints. Progress naturally while aiming for episodes and premise as goals. Try to steer narrative into episodes/premise naturally. If unrecoverably diverged, system will react and invent new premise/episodes.
 
 </story-guidance>
 
