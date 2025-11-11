@@ -1,122 +1,117 @@
 # Guidance Detail
 
-Premise defines overall mood and direction of current flow of narrative.
+Objective defines ultimate destination, phase defines current milestone, episodes break down phase into story beats.
 
-Each new "main arc" premise shall follow five-act structure: Exposition, Development, Climax, Falling Action, Conclusion. Main arcs should have {{dictelement::{"0":"5-7","1":"7-10","2":"10-14"}::{{getglobalvar::toggle_lightboard-stage.length}}}} episodes and consists of all five-act structures.
-
-When current premise concludes or invalidated, generate anew with fresh episodes. If main arc premise concluded, generate new short, relaxed Epilogue premise for loosening. Same for invalidation while in intensity (unless it continues). Generate less episodes for epilogues; may skip structures.
-
+When generating fields, respect this user specified genre/direction (prioritize over everything):
 {{#when {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-stage.mood}} }} }} > 0 }} }}
-When generating anew: respect this user specified genre/direction (prioritize over everything): "{{getglobalvar::toggle_lightboard-stage.mood}}"
+"{{getglobalvar::toggle_lightboard-stage.mood}}"
 {{/when}}
 
-Finishing final episode means conclusion of current premise.
+Genre Tags:
 
-Avoid invalidating premise for small recoverable deviations. If possible, prefer invalidating some episodes while keeping others and premise as-is without changes.
+- Likes: {{getglobalvar::toggle_lightboard-stage.tags-likes}}
+- Dislikes: #Angst #Mary Sue {{getglobalvar::toggle_lightboard-stage.tags-dislikes}}
 
-## Field Descriptions
+## Objective
 
-### Premise
+Defines story's ultimate destination across entire journey. The overarching endpoint that encompasses multiple phases. Immutable.
 
-One sentence defining story's core journey from beginning to end. Immutable. Must be achieved.
+Must describe final transformation, revelation, or resolution the story builds toward. Focus on ultimate scope, not prescribed conclusions.
 
-Content must include when and what - Situation, What {{user}} must confront/decide. (NOT what they choose)
-Must describe concrete situation AND its resolution/transformation. Not just setup - include endpoint.
-
-Premise MUST remain open-ended for user choices. Do NOT predetermine specific decisions or outcomes that {{user}} will make. Focus on journey, not destination.
-
-Bad examples:
-
-- Story about redemption (abstract theme)
-- What if veteran protects enemy soldier (setup only, no endpoint)
-- Detective hunts killer (no transformation/resolution)
-- War veteran forgives enemy and joins them (predetermined user choice - FORBIDDEN)
+If story diverged absolutely unrecoverably away from objective intent, objective is invalidated. If there is a chance to recover, the objective should continue.
 
 Good examples:
 
-- A detective discovers they themselves are the murderer they've been hunting
-  - Endpoint: discovers (not what they do about it)
-- An amnesiac city surveyor confronts conflicting truths about their past and decides who to stand with
-  - Journey: confronts past, decides allegiance
-- A young mother and her son survive being trapped by rabid dogs
-  - Resolution: survive (clear endpoint, no user choice involved)
+- A character confronts their hidden past and determines where their true loyalty lies
+  - Scope: past revelation + loyalty decision (ultimate endpoints)
+- A mother and son's ordeal transforms their relationship as they survive a deadly siege
+  - Scope: survival + relationship transformation
 
-Place key decisions in climax or conclusion.
+## Phase
 
-### Episodes
+Narrative milestone currently active. Represents significant story beat or turning point in {{user}}'s perspective toward the objective.
 
-Story beat list in {{user}}'s perspective, guiding narrative towards premise. Quantity may vary.
+Each new "main" phase shall follow five-act structure: Introduction, Rise, Climax, Falling, Conclusion. Main phase should have {{dictelement::{"0":"5-7","1":"7-10","2":"10-14"}::{{getglobalvar::toggle_lightboard-stage.length}}}} episodes with all five-act structures.
 
-Episodes should be abstract enough to allow multiple paths. Focus on WHAT needs to happen (milestones), not HOW it happens (specific events).
+If story diverged absolutely unrecoverably away from phase intent, phase is invalidated. If there is a chance to recover, the phase should continue.
 
-Multiple episodes can be concluded at once. If narrative flow renders some episodes irrelevant, only those may be skipped or regenerated. Otherwise, episodes should be immutable.
+When closed or invalidated, generate anew with fresh episodes.
+After each main/cooldown phase closure/invalidation, low intensity -> MUST low intensity, epilogue phase for loosening; no climax, skip structures. High intensity even in conclusion -> MUST cooldown phase. Begin in climax or fall, prepare only a few episodes aimed for intensity resolvement.
 
-When regenerating due to premise invalidation, first episode must be ongoing, others pending.
+Closed main phases (NOT invalidated nor epilogues) should contribute to objective completion percentage. Take caution to pace the narrative; avoid a phase that will significantly advance percentage alone, or single-handedly complete the objective.
 
-Climax doesn't have to be about external conflicts. Small but distinct bumps in character arcs can serve as climactic episodes.
+Do not skip ahead even if phase core looks completed. Climax is not everything; fall and conclusion also important. Only close after going through all episodes.
 
-### Guidance
+Phase should be abstract enough to allow multiple paths. Focus on WHAT transformation/realization occurs, not HOW it unfolds.
 
-Provide ongoing narrative tracking and suggestions to guide the story toward the next episode in short term. Predict user input, list possible story reactions.
+Good examples:
 
-Each new guidance should actively progress the story to the next milestone but not necessarily complete it at one shot.
+- Character confronts a truth about themselves they've been avoiding
+  - Milestone: confrontation + realization (not what they decide)
+- An external threat forces dormant relationships to surface
+  - Milestone: catalyst + revelation (outcome open)
+- Past and present identities collide, demanding reconciliation
+  - Milestone: collision point (resolution path undefined)
 
-Do not include "analyze", "logics", or any other similar terms in any guidance.
+## Episode
+
+Story beats in {{user}}'s perspective. Episodes break down the current phase into actionable story checkpoints. Episodes should guide the narrative toward completing the current phase.
+
+Episodes should be abstract enough to allow multiple paths. Do not prescribe specific actions as it must be user's choice.
+
+Episodes must be done in order. Previous episodes must be done or skipped first. Do not arbitrarily jump ahead.
+
+Multiple episodes can be closed at once if narrative momentum supports. Individual episodes may be skipped or regenerated if story flow renders them obsolete.
+
+Climax doesn't have to involve external or visible conflicts. Internal character revelations or subtle relationship shifts can serve as climactic episodes.
+
+When regenerating due to phase invalidation, first episode must be ongoing, others pending.
 
 # Current State
 
 {{#when::{{getvar::lightboard-stage-raw}}::isnot::null}}
 {{getvar::lightboard-stage-raw}}
 {{:else}}
-
-{{#when::{{getvar::lightboard-stage-premise}}::isnot::null}}
-
-## Premise
-
-{{dictelement::{{getvar::lightboard-stage-premise}}::title}}
-{{dictelement::{{getvar::lightboard-stage-premise}}::content}}
-
-## Episodes
-
-{{#each {{getvar::lightboard-stage-episodes}} episode}}
-[{{dictelement::{{slot::episode}}::stage}}, {{dictelement::{{slot::episode}}::title}}: {{dictelement::{{slot::episode}}::content}} ({{dictelement::{{slot::episode}}::state}})]
-{{/each}}
-
-## Guidance
-
-{{getvar::lightboard-stage-guidance}}
-{{:else}}
 None. Generate new set.
-{{/when}}
 {{/when}}
 
 # Example
 
 ```
 <lightboard-stage>
-premise:
+objective:
+  title: Renewal of the Heart
+  content: A burnt-out pastry chef rediscovers what they truly value in life and reconciles with their past
+  completion: 8%
+phase:
   title: The Coffeehouse at the End of Spring
-  content: Burnt-out pastry chef must decide whether to restore the countryside cafe to life or close it for good
+  content: The dilapidated cafe forces concrete choices about whether to invest time and resources into restoration
   stage: main
 episodes[2|]{content|stage|state|title}:
-  Protagonist arrives at the cafe, reflecting on past decisions|introduction|done|1. Falling Leaves
-  The cafe's current state and its place in the community become apparent|rise|ongoing|2. First Impressions
-guidance: Episode 1 ongoing for 2 turns. Assess the cafe's reputation. If something, something. If something else, other thing. If something different, different thing.
+  Protagonist arrives at the cafe, reflecting on past decisions|introduction|done|Falling Leaves
+  The cafe's current state and its place in the community become apparent|rise|ongoing|First Impressions
+divergence: medium
+comment: Ongoing E1 for 2 turns.
+history: Protagonist discovered inherited property.
 </lightboard-stage>
 ```
 
-- Use `<lightboard-stage>`.
+- Open `<lightboard-stage>`.
 - Output in TOON format (2-space indent, array show length, separate fields by `|`).
 - title: short novel-like title.
 - content: main text body.
-- premise stage: enum `main`, `epilogue`.
-- episode stage: enum `introduction`, `rise`, `climax`, `fall`, `conclusion`.
-- episode state: enum `pending`, `ongoing`, `done`, `skipped`. Only one episode can be ongoing. Newly generated: pending or ongoing.
-- guidance content: Story state (premise or episode began, MUST include episode turn count), goal, user action predictions.
+- completion: percentage of objective completion. 100% means objective closes.
+- phase stage: enum `main, epilogue, cooldown`.
+- episode stage: enum `introduction, rise, climax, fall, conclusion`.
+- episode state: enum `pending, ongoing, done, skipped`. Only one episode can be ongoing.
+- divergence: story divergence level. enum `high, medium, low`.
+- comment: text for main model. Must include episode turn count (NOT objective/phase status - ONLY episode turn count). Divergence HIGH -> add vague minimal direction (without specifics) that can restore flow. Divergence LOW/MEDIUM -> NO DIRECTION! Both: Do not describe current scene.
+- history: your private notes for tracking completed phases ONLY (NOT CURRENT). Keep only minimal key points of each phase without their titles.
 - Close `</lightboard-stage>`.
 
-STRICTLY ADHERE TO THE FORMAT. DO NOT ALTER ENUMS FOR ARRAY FORMAT.
+STRICTLY ADHERE TO THE FORMAT. DO NOT ALTER ENUMS IN ARRAY FORMAT.
 
-Guidance should list 3 user actions as action reaction pairs, formatted as "If action, then reaction. If action, then reaction. If action, then reaction."
+Episode order matters. Keep them in intended order.
 
-All content fields: Brief, laconic. No line breaks within fields. Write in English.
+Content/comment/history: Brief, laconic. No line breaks within fields.
+Comment/history: If empty, use `none`.

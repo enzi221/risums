@@ -59,6 +59,11 @@ local function main(output)
   end
 
   local data = prelude.toon.decode(body.content)
+  if not data or not data.objective or not data.phase or not data.episodes then
+    print('[LightBoard] Stage content invalid')
+    return '<lb-lazy identifier="lightboard-stage"></lb-lazy>'
+  end
+
   local deepEncodedEpisodes = {}
   for _, episode in ipairs(data.episodes) do
     table.insert(deepEncodedEpisodes, json.encode(episode))
@@ -66,9 +71,11 @@ local function main(output)
 
   setChatVar(triggerId, 'lightboard-stage-key', triggerId)
   setChatVar(triggerId, 'lightboard-stage-raw', body.content)
-  setChatVar(triggerId, 'lightboard-stage-premise', json.encode(data.premise))
+  setChatVar(triggerId, 'lightboard-stage-objective', json.encode(data.objective))
+  setChatVar(triggerId, 'lightboard-stage-phase', json.encode(data.phase))
   setChatVar(triggerId, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes))
-  setChatVar(triggerId, 'lightboard-stage-guidance', data.guidance)
+  setChatVar(triggerId, 'lightboard-stage-divergence', data.divergence)
+  setChatVar(triggerId, 'lightboard-stage-comment', data.comment)
 
   return '<lightboard-stage key="' .. triggerId .. '">' .. xor(body.content) .. '</lightboard-stage>'
 end

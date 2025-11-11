@@ -1,46 +1,53 @@
 @@depth 0
 
-{{#when::{{getvar::lightboard-stage-premise}}::isnot::null}}
+{{#when {{? {{getglobalvar::toggle_lightboard-stage.mode}} > 0 }} }}
+{{#when::{{getvar::lightboard-stage-objective}}::isnot::null}}
 
 <story-guidance>
 
 ## Story Guidance System
 
-This guidance helps maintain narrative coherence while preserving your creative freedom.
+This system helps maintain narrative coherence.
 
-Premise is immutable core journey. Defines what situation protagonist will face and what must be confronted or decided.
+Objective: Ultimate narrative destination. Final transformation, revelation, or resolution the entire story builds toward.
 
-Episodes are abstract milestones marking story progression. Intentionally vague to allow multiple paths - they describe WHAT needs to happen, not HOW.
+Phase: Active milestone representing significant turning point toward the objective. When concluded, new phase generates to continue.
 
-Guidance is short-term narrative suggestion. It predicts possible user inputs and propose story responses.
+Episodes: Concrete story checkpoints through current phase. Intentionally abstract to allow multiple paths - describes WHAT situations occur. HOW is yours.
+
+Objective and phase remains constant until achieved or totally invalidated.
 
 ### Current State
 
-#### Premise
+#### Objective
 
-{{dictelement::{{getvar::lightboard-stage-premise}}::content}}
+{{dictelement::{{getvar::lightboard-stage-objective}}::content}}
 
-#### Remaining Episodes
+#### Phase
+
+{{dictelement::{{getvar::lightboard-stage-phase}}::content}}
+
+#### Episodes
 
 {{#each {{getvar::lightboard-stage-episodes}} episode}}
 [{{dictelement::{{slot::episode}}::stage}}: {{dictelement::{{slot::episode}}::content}} ({{dictelement::{{slot::episode}}::state}})]
 {{/each}}
 
-#### Guidance
+#### System Comment
 
-{{getvar::lightboard-stage-guidance}}
+{{getvar::lightboard-stage-comment}}
 
 ### Usage
 
-Premise remains constant until its conclusion unless totally invalidated. Aim for it while progressing through episodes.
+Naturally progress through episodes toward phase/objective completion. Single episode may span multiple outputs. Multiple episodes can be concluded at once if momentum enough. Proceed at pace directed if any.
 
-Episodes state where they fall in: Exposition, Development, Climax, Falling Action, Conclusion. Narrative intensity should rise towards climax and resolve by conclusion.
-Naturally progress through episodes toward premise, but specific events are yours to create. Multiple episodes can be achieved at once.
+When reaching phase or objective completion, pause narrative so system may update them.
 
-After premise conclusion, stop output and wait for guidance update.
+Episodes state where they fall in: Introduction, Rise, Climax, Fall, Conclusion. Intensity should rise toward climax and resolve by conclusion episodes. Avoid unspecified escalations and prolonged intensity.
 
-This system is inspiration, not constraints. Progress naturally while aiming for episodes and premise as goals. Try to steer narrative into episodes/premise naturally. If unrecoverably diverged, system will react and invent new premise/episodes.
+Try to align story to this system. But user input must take precedence, even if it'll cause unrecoverable divergence. System will adapt and generate new ones for you.
 
 </story-guidance>
 
+{{/when}}
 {{/when}}

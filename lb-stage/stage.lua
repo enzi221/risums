@@ -64,11 +64,13 @@ local function main(data)
   local node = nodes[1]
   local content = prelude.toon.decode(xordecrypt(node.content))
 
-  local premise = content.premise
+  local objective = content.objective
+  local phase = content.phase
   local episodes = content.episodes
-  local guidance = content.guidance
+  local comment = content.comment == null and '' or content.comment
+  local history = content.history == null and '' or content.history
 
-  if not premise or not episodes or not guidance then
+  if not objective or not phase or not episodes then
     return data
   end
 
@@ -79,13 +81,13 @@ local function main(data)
     if not nextEpisode and (episode.state == 'ongoing' or episode.state == 'pending') then
       nextEpisode = episode
       nextEpisode_e = h.div {
-        h.h3 { episode.title },
+        h.h4 { episode.title },
         h.p { episode.content },
       }
     end
 
     table.insert(episodes_es, h.div {
-      h.h3 {
+      h.h4 {
         '[' .. episode.stage .. '] ',
         episode.title,
         h.span {
@@ -100,7 +102,7 @@ local function main(data)
 
   local id = 'lb-stage-' .. math.random()
 
-  local playing = premise.title .. (nextEpisode and ' - ' .. nextEpisode.title or '')
+  local playing = phase.title .. (nextEpisode and ' - ' .. nextEpisode.title or '')
 
   local html = h.div['lb-module-root'] {
     data_id = 'lightboard-stage',
@@ -125,26 +127,43 @@ local function main(data)
           h.lb_reroll_icon { closed = true }
         },
       },
-      h.h1['lb-stage-premise'] {
-        premise.title,
+      h.hgroup {
+        h.h1 {
+          objective.title,
+        },
+        h.h2['lb-stage-phase'] {
+          phase.title,
+        },
+        h.p {
+          phase.content,
+        },
       },
-      h.p {
-        premise.content,
-      },
-      h.h2 {
+      h.h3 {
         'Ongoing Episode',
       },
       nextEpisode_e,
       h.details {
-        h.summary 'Guidance (Spoilers)',
-        h.p {
-          guidance,
-        },
-      },
-      h.details {
         h.summary 'All Episodes (Spoilers)',
         episodes_es,
       },
+      h.details {
+        h.summary 'Debug (Spoilers)',
+        h.p {
+          'Objective: ' .. (objective.content or ''),
+        },
+        h.p {
+          'Completion: ' .. (objective.completion or ''),
+        },
+        h.p {
+          'Divergence: ' .. (content.divergence or ''),
+        },
+        h.p {
+          'Comment: ' .. (comment or ''),
+        },
+        h.p {
+          'History: ' .. (history or ''),
+        }
+      }
     },
   }
 
@@ -179,7 +198,14 @@ onStart = async(function(tid)
 
   local currentKey = getChatVar(tid, 'lightboard-stage-key')
 
-  if not currentKey or currentKey == '' then
+  if not currentKey or currentKey == '' or currentKey == 'null' then
+    setChatVar(tid, 'lightboard-stage-key', '')
+    setChatVar(tid, 'lightboard-stage-raw', '')
+    setChatVar(tid, 'lightboard-stage-objective', '')
+    setChatVar(tid, 'lightboard-stage-phase', '')
+    setChatVar(tid, 'lightboard-stage-episodes', '')
+    setChatVar(tid, 'lightboard-stage-comment', '')
+    setChatVar(tid, 'lightboard-stage-divergence', '')
     return
   end
 
@@ -198,9 +224,11 @@ onStart = async(function(tid)
   if not stageChat then
     setChatVar(tid, 'lightboard-stage-key', '')
     setChatVar(tid, 'lightboard-stage-raw', '')
-    setChatVar(tid, 'lightboard-stage-premise', '')
+    setChatVar(tid, 'lightboard-stage-objective', '')
+    setChatVar(tid, 'lightboard-stage-phase', '')
     setChatVar(tid, 'lightboard-stage-episodes', '')
-    setChatVar(tid, 'lightboard-stage-guidance', '')
+    setChatVar(tid, 'lightboard-stage-comment', '')
+    setChatVar(tid, 'lightboard-stage-divergence', '')
 
     stopChat(tid)
     alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")
@@ -230,9 +258,11 @@ onStart = async(function(tid)
 
   setChatVar(tid, 'lightboard-stage-key', extractedKey)
   setChatVar(tid, 'lightboard-stage-raw', decrypted)
-  setChatVar(tid, 'lightboard-stage-premise', json.encode(data.premise) or '')
+  setChatVar(tid, 'lightboard-stage-objective', json.encode(data.objective) or '')
+  setChatVar(tid, 'lightboard-stage-phase', json.encode(data.phase) or '')
   setChatVar(tid, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes) or '')
-  setChatVar(tid, 'lightboard-stage-guidance', data.guidance or '')
+  setChatVar(tid, 'lightboard-stage-comment', data.comment or '')
+  setChatVar(tid, 'lightboard-stage-divergence', data.divergence or '')
 
   stopChat(tid)
   alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")
