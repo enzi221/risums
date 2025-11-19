@@ -35,6 +35,8 @@ Each new "main" phase shall follow five-act structure: Introduction, Rise, Clima
 
 If story diverged absolutely unrecoverably away from phase intent, phase is invalidated. If there is a chance to recover, the phase should continue.
 
+Take extra care to determine if phase is absolutely unrecoverable. Even if narrative skipped ahead in time, phase and its episodes may still be valid if core transformation/realization is achievable.
+
 When closed or invalidated, generate anew with fresh episodes.
 After each main/cooldown phase closure/invalidation, low intensity -> MUST low intensity, epilogue phase for loosening; no climax, skip structures. High intensity even in conclusion -> MUST cooldown phase. Begin in climax or fall, prepare only a few episodes aimed for intensity resolvement.
 

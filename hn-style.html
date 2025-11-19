@@ -7,14 +7,16 @@
     border: 1px solid #34465c;
   }
 
-  [data-id='lightboard-hn'] .lb-opener {
+  [data-id='lightboard-hn'] .lb-opener,
+  [data-id='lightboard-hn'] .lb-reroll {
     border: 1px solid #34465c;
+    color: #07f;
     transition: background 0.1s ease, color 0.1s ease;
   }
 
-  [data-id='lightboard-hn'] .lb-opener:hover {
+  [data-id='lightboard-hn'] .lb-opener:hover,
+  [data-id='lightboard-hn'] .lb-reroll:hover {
     background: #1e293a;
-    color: #07f;
   }
 
   /* #region shared */
@@ -273,6 +275,7 @@
   }
 
   .lb-hn-comment-item {
+    color: #ccc !important;
     display: grid;
     grid-template-columns: 120px 1fr;
     gap: 12px;
@@ -281,7 +284,6 @@
     align-items: baseline;
     line-height: 1.5;
     font-size: 13px;
-    color: #ccc;
     word-wrap: break-word;
     white-space: pre-wrap;
     font-family: 'Noto Sans KR', Roboto, sans-serif;

@@ -6,6 +6,9 @@
 ---@diagnostic disable: lowercase-global
 
 local END_MARKER = "--- End of the log ---"
+local EXTERNAL_LORES_MARKER = [[# Extra Universe Settings
+
+These are additional priority directions given to you specific to this universe. These should take precedence over other universe settings.]]
 
 -- jailbreak, job, universe, protagonist name, protagonist description, char desc
 local SYSTEM_INST = [[# System rules
@@ -482,7 +485,7 @@ local function makePromptOutro(manifest, type)
     thoughtsFormat = nil
   end
 
-  return END_MARKER .. '\n\n' .. outputGuideline .. OUTPUT_INST:format(
+  return outputGuideline .. OUTPUT_INST:format(
     (thoughtsFormat and thoughtsFormat ~= "" and thoughtsFormat .. "\n\nPut the above step-by-step process into `<lb-process>` block." or ""),
     ((thoughtsFormat and thoughtsFormat ~= "" and "<lb-process>\n(process)\n</lb-process>\n\n") or "") ..
     dataFormat,
@@ -504,6 +507,14 @@ local function makePrompt(manifest, log, type, extras)
   local intro = makePromptIntro(manifest)
   local outro = makePromptOutro(manifest, type)
 
+  local externalLores = getLoreBooks(triggerId, identifier .. ".lb.extra")
+  local externalLoresContent = ''
+  for _, lore in ipairs(externalLores) do
+    if lore.content and lore.content ~= "" then
+      externalLoresContent = externalLoresContent .. '\n\n' .. lore.content
+    end
+  end
+
   local authorsNote = ''
   if manifest.authorsNote then
     authorsNote = getAuthorsNote(triggerId)
@@ -513,7 +524,10 @@ local function makePrompt(manifest, log, type, extras)
   local prefillExternal = prelude.getPriorityLoreBook(triggerId, manifest.identifier .. ".lb.prefill")
   local prefill = (prefillExternal and prefillExternal.content) or ""
 
-  local systemPromptTokens = getTokens(triggerId, intro .. outro .. authorsNote .. prefill .. (extras or "")):await()
+  local systemPromptTokens = getTokens(triggerId,
+        intro ..
+        outro .. authorsNote .. prefill .. (extras or "") .. END_MARKER .. EXTERNAL_LORES_MARKER .. externalLoresContent)
+      :await()
 
   -- #region Context length calculations
   -- Always reserve this much, prevent lore books filling all the context
@@ -528,7 +542,7 @@ local function makePrompt(manifest, log, type, extras)
 
   -- Overridable via toggle, min = reserve
   local maxCtxLenToggle = math.max(
-  manifest.maxCtx or tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxCtx")) or reserve, reserve)
+    manifest.maxCtx or tonumber(getGlobalVar(triggerId, "toggle_lightboard.maxCtx")) or reserve, reserve)
 
   -- reserve ~ value ~ max
   maxCtxLen = math.max(reserve, math.min(maxCtxLen, maxCtxLenToggle))
@@ -613,6 +627,18 @@ local function makePrompt(manifest, log, type, extras)
 
   for i = #logsToAdd, 1, -1 do
     prompt[#prompt + 1] = logsToAdd[i]
+  end
+
+  prompt[#prompt + 1] = {
+    content = END_MARKER,
+    role = "user",
+  }
+
+  if externalLoresContent ~= '' then
+    prompt[#prompt + 1] = {
+      content = EXTERNAL_LORES_MARKER .. '\n\n' .. externalLoresContent,
+      role = "user",
+    }
   end
 
   prompt[#prompt + 1] = {

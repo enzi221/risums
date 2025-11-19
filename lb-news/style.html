@@ -149,20 +149,9 @@
     padding: var(--space-lg) var(--pad-lr);
   }
 
-  .lb-news-title {
-    color: var(--point-dark);
-    font-size: var(--font-lg);
-    font-weight: bold;
-    margin: 0;
-  }
-
   .lb-news-header-buttons {
     display: flex;
     gap: 8px;
-  }
-
-  .lb-news-title::before {
-    content: var(--prefix) ' ';
   }
 
   .lb-news-dialog-close {
@@ -266,7 +255,7 @@
   }
 
   .lb-news-title {
-    color: var(--fg);
+    color: var(--fg) !important;
     font-family: var(--font-serif);
     font-size: var(--font-sm);
     font-weight: bold;
@@ -319,7 +308,7 @@
   }
 
   .lb-news-ad-content {
-    color: inherit;
+    color: inherit !important;
     font-family: var(--font-sans);
     font-size: var(--font-sm);
     font-weight: 600;
