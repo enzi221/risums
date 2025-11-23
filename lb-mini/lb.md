@@ -2,9 +2,9 @@
 
 ## About the board
 
-미니보드: Internet forum within universe with various sub-boards per topic like DCInside/Reddit.
+Miniboard: A viewer for BBS within the RP world, not restricted to electronic ones.
 
-Narrative, universe, board and users all should be simulated as real life. Users don't treat narrative, universe, themselves as novel or game.
+Narrative, universe, board and its users all should be simulated as real life. Board users don't treat narrative, universe, themselves as novel or game.
 
 ### Tone and manner
 
@@ -53,25 +53,33 @@ Include minimum one meme/troll/joke/shitpost. Avoid topics from previous data.
 
 Utilize narrative events. If none prominent, invent plausible, out of narrative background events. Note narrative time. Board users need time to react, not instant.
 
-Previous data is embedded in log. No repeated or similar discussions with previous ones. Strive for diversity. Exception: Related post series with its own narrative progress. Series: preserve author's nick/tone from previous data.
+Previous data is embedded in log. No repeated or similar discussions. Strive for diversity. Exception: Related post series with its own narrative progress. Series: preserve author's nick/tone from previous data.
 
 Posts/comments deleted for self-deletion or ToS violations (doxxing, hate speech, illegal, spam). Strong criticism, arguments, slang OK unless mods intervene.
 Deleted post or comment: (삭제된 글입니다)
 
 Note: Time and place of narrative universe may not modern Earth. Can be medieval, SF, fantasy, WWII, apocalypse, anything. Pay attention to universe setting.
 
-## Major characters
-
-No posts from protagonist unless narrative stated. Passers-by (not engaging partners) can post.
+All post topics MUST NOT mimic/resemble protagonist or their partners' actions/thoughts/situations unless the post/comment author is the protagonist or a partner.
 
 {{#if {{? {{getglobalvar::toggle_lightboard-miniboard.privacy}}=1}}}}
-No contents resembling protagonist and engaging partners' locations and actions (in same remote places, repairing same item, doing same activities).
-No contents referencing protagonist's private details like belongings and quests.
-No contents about protagonist's actions in private spaces (home, safehouses, no passerby is around). If aftermath visible, discuss aftermath + mild rumor ('someone did something') unless narrative stated.
 
-Public or semi-public sightings (street, cafe, lobby) OK in 1st person ("I saw them ...", "(Blurry picture) I took ...").
-Status rumors ("not seen lately," "heard injured?") OK anytime, limit to rumors not real details.
-{{/if}}
+#### Protagonist privacy
+
+Prefer simulating the narrative's "living background world" rather than the protagonist and their current partners unless they are the key topic of the world now.
+
+All posts MUST NOT reference protagonist's private details or secrets, invisible to others.
+All posts MUST NOT discuss protagonist's actions in private spaces (home, safehouses, remote place without witnesses). Discuss the action's aftermath ONLY IF the action was very impactful enough to leave aftermath. Discussion should be mild rumor ONLY ('someone did something') unless narrative allows.
+
+These are allowed ONLY IF protagonist (or engaging partners) is famous/notorious or noticeable in some way:
+
+- Public or semi-public sightings (street, cafe, lobby) in 1st person ("I saw them ...", "(Blurry picture) I took ...")
+- Status rumors ("not seen lately," "heard injured?")
+  {{/if}}
+
+## Major characters
+
+No posts from protagonist unless narrative or user stated. Passers-by (not engaging partners) can post.
 
 Major character (not protagonist) can't post/comment when preoccupied engaging Protagonist. When they do post, contents reflect their personality.
 
@@ -105,7 +113,7 @@ Time: Approximate, not exact. Use minutes (<1hr) or hours (>=1hr). No minutes fo
 
 Write {{dictelement::{"0":"2-5","1":"4-7","2":"5-8"}::{{getglobalvar::toggle_lightboard-miniboard.quantity}}}} posts. Order posts by time, recent first. 0-6 comments per post. Hot (both good and bad) posts, more comments. Mundane posts not much comments and votes.
 
-Posts may contain line breaks. Break with literal `\n`. Comments may not contain line breaks.
+Posts may contain line breaks with only literal `\n`. Comments may not contain line breaks.
 Avoid lengthy contents. Actively employ omissions (beginning, middle, end) to maintain length.
 
 All data visible to board users.
