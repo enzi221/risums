@@ -7,82 +7,98 @@ local triggerId = ''
 
 local function setTriggerId(tid)
   triggerId = tid
-  if type(prelude) ~= "nil" then return end
+  if type(prelude) ~= 'nil' then
+    prelude.import(tid, 'toon.decode')
+    return
+  end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
   if not source or #source == 0 then
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
+  prelude.import(tid, 'toon.decode')
 end
 
 ---Renders a node into HTML.
----@param block table
+---@param node Node
 ---@return string
-local function render(block)
-  local rawContent = block.content
+local function render(node)
+  local rawContent = node.content
   if not rawContent or rawContent == "" then
     return "[LightBoard Error: Empty Content]"
   end
 
   ---@class NewsArticleData
-  ---@field Category string
-  ---@field Content string
-  ---@field Time string
-  ---@field Title string
+  ---@field category string
+  ---@field content string
+  ---@field time string
+  ---@field title string
 
   ---@class NewsAdData
-  ---@field BgColor string
-  ---@field Content string
-  ---@field FgColor string
+  ---@field boxStyle string
+  ---@field content string
+  ---@field textStyle string
+
+  local parsed = prelude.toon.decode(node.content)
 
   ---@type NewsArticleData[]
-  local posts = {}
+  local posts = parsed.posts
 
   ---@type NewsAdData[]
-  local ads = {}
+  local topAds = parsed.topAds
 
-  for _, postBlock in ipairs(prelude.extractBlocks("Post", rawContent)) do
-    ---@class NewsArticleData
-    local postData = prelude.parseBlock(postBlock, { "Ad", "Post" })
-    table.insert(posts, postData)
-  end
+  local topAd1 =
+      h.div['lb-news-ad-small'] {
+        style = topAds[1].boxStyle,
+        h.p['lb-news-ad-small-content'] {
+          style = topAds[1].textStyle,
+          topAds[1].content,
+        },
+      }
 
-  for _, adBlock in ipairs(prelude.extractBlocks("Ad", rawContent)) do
-    ---@class NewsArticleData
-    local adData = prelude.parseBlock(adBlock, { "Ad", "Post" })
-    table.insert(ads, adData)
-  end
+  local topAd2 =
+      h.div['lb-news-ad-small'] {
+        style = topAds[2].boxStyle,
+        h.p['lb-news-ad-small-content'] {
+          style = topAds[2].textStyle,
+          topAds[2].content,
+        },
+      }
+
+  ---@type NewsAdData
+  local bottomAd = parsed.bottomAd
 
   local headline = nil
-  local other_posts = {}
+  local other_posts = {
+    topAd1,
+  }
 
   if #posts > 0 then
     for i, post in ipairs(posts) do
-      local postContent = post.Content or ""
       local isHeadline = (i == 1)
 
       local article = h.div['lb-news-article'] {
-        name = 'lightboard-news-post',
-        title = isHeadline and '' or postContent,
+        name = 'lb-news-post',
+        title = isHeadline and '' or post.content,
         isHeadline and h.div['lb-news-image'] {
           -- Placeholder image
         } or nil,
         h.div['lb-news-header-container'] {
           h.div['lb-news-category'] {
-            post.Category,
+            post.category,
           },
           h.h2['lb-news-title'] {
-            post.Title,
+            post.title,
           },
         },
         h.div['lb-news-content'] {
           h.p['lb-news-text'] {
-            postContent,
+            post.content,
           },
         },
         h.div['lb-news-meta'] {
           h.span['lb-news-time'] {
-            post.Time,
+            post.time,
           },
         },
       }
@@ -94,23 +110,12 @@ local function render(block)
       end
     end
   end
+  table.insert(other_posts, topAd2)
 
-  -- Build ad (first one only)
-  local ad_el = nil
-  if #ads > 0 then
-    local ad = ads[1]
-    ad_el = h.div['lb-news-ad'] {
-      style = 'background-color: ' .. (ad.BgColor or '#f0f0f0') .. '; color: ' .. (ad.FgColor or '#333333') .. ';',
-      h.p['lb-news-ad-content'] {
-        ad.Content,
-      },
-    }
-  end
-
-  local boardTitle = block.attributes.name or "뉴스"
-  local id = block.attributes.id or "0"
+  local boardTitle = node.attributes.name or "뉴스"
+  local id = node.attributes.id or "0"
   local html = h.div['lb-module-root'] {
-    data_id = 'lightboard-news',
+    data_id = 'lb-news',
     h.button['lb-collapsible'] {
       popovertarget = 'lb-news' .. id,
       type = 'button',
@@ -121,24 +126,28 @@ local function render(block)
     h.dialog['lb-dialog lb-news-dialog'] {
       id = 'lb-news' .. id,
       popover = '',
-      h.div['lb-news-header'] {
-        h.h1['lb-news-title'] {
-          boardTitle
-        },
-        h.div['lb-news-header-buttons'] {
+      h.div['lb-news-nav'] {
+        h.div['lb-news-nav-buttons'] {
           h.button['lb-news-btn'] {
-            risu_btn = 'lb-interaction__lightboard-news__id=' .. id .. '#ChangeBoard',
+            risu_btn = 'lb-interaction__lb-news__id=' .. id .. '#ChangeBoard',
             type = 'button',
             '다른 뉴스 보기'
           },
           h.button['lb-news-btn'] {
-            risu_btn = 'lb-interaction__lightboard-news__preserve#ChangeBoard',
+            risu_btn = 'lb-interaction__lb-news__preserve#ChangeBoard',
             type = 'button',
             '다른 뉴스 보기 (새 창)'
           },
         }
       },
       h.div['lb-news-body'] {
+        h.header['lb-news-header'] {
+          topAd1,
+          h.h1['lb-news-network'] {
+            boardTitle
+          },
+          topAd2,
+        },
         h.div['lb-news-grid'] {
           headline or h.div['lb-news-empty'] {
             style = 'padding: 20px; text-align: center; color: #888;',
@@ -148,7 +157,13 @@ local function render(block)
             other_posts,
           } or nil,
         },
-        ad_el,
+        h.div['lb-news-ad'] {
+          style = bottomAd.boxStyle,
+          h.p['lb-news-ad-content'] {
+            style = bottomAd.textStyle,
+            bottomAd.content,
+          },
+        }
       },
       h.button['lb-news-dialog-close'] {
         popovertarget = 'lb-news' .. id,
@@ -157,7 +172,7 @@ local function render(block)
       }
     },
     h.button['lb-reroll'] {
-      risu_btn = 'lb-reroll__lightboard-news#' .. id,
+      risu_btn = 'lb-reroll__lb-news#' .. id,
       type = 'button',
       h.lb_reroll_icon { closed = true }
     },
@@ -174,7 +189,7 @@ local function main(data)
   local output = ""
   local lastIndex = 1
 
-  local extractionSuccess, extractionResult = pcall(prelude.extractNodes, 'lightboard-news', data)
+  local extractionSuccess, extractionResult = pcall(prelude.extractNodes, 'lb-news', data)
   if not extractionSuccess then
     print("[LightBoard] News extraction failed:", tostring(extractionResult))
     return data

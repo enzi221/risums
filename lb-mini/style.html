@@ -1,5 +1,5 @@
 <style>
-  [data-id='lightboard-miniboard'] {
+  [data-id='lb-mini'] {
     --border-r: 8px;
     --border-r-2: 4px;
 
@@ -7,15 +7,15 @@
     --height-footer: 40px;
     --pad-lr: 16px;
 
-    --darkness: {{getglobalvar::toggle_lightboard-miniboard.darkness}};
+    --darkness: {{getglobalvar::toggle_lb-mini.darkness}};
     --theme:
-      {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=0 }} }}'♦️'{{/if}}
-      {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=1 }} }}'💎'{{/if}}
-      {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=2 }} }}'✨'{{/if}}
-      {{#if_pure {{? {{getglobalvar::toggle_lightboard-miniboard.theme}}=3 }} }}'🌳'{{/if}};
+      {{#if_pure {{? {{getglobalvar::toggle_lb-mini.theme}}=0 }} }}'♦️'{{/if}}
+      {{#if_pure {{? {{getglobalvar::toggle_lb-mini.theme}}=1 }} }}'💎'{{/if}}
+      {{#if_pure {{? {{getglobalvar::toggle_lb-mini.theme}}=2 }} }}'✨'{{/if}}
+      {{#if_pure {{? {{getglobalvar::toggle_lb-mini.theme}}=3 }} }}'🌳'{{/if}};
   }
 
-  [data-id='lightboard-miniboard'] > * {
+  [data-id='lb-mini'] > * {
     --bg: #fff;
     --bg-2: #f9f9f9;
     --border: #e0e0e0;
@@ -41,7 +41,7 @@
   }
 
   @container style(--theme: '♦️') and style(--darkness: 0) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #fff;
       --bg-2: #f9f9f9;
       --border: #e0e0e0;
@@ -68,7 +68,7 @@
   }
 
   @container style(--theme: '♦️') and style(--darkness: 1) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #20212b;
       --bg-2: #2a2938;
       --border: #3d3e4b;
@@ -94,7 +94,7 @@
   }
 
   @container style(--theme: '💎') and style(--darkness: 0) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #fff;
       --bg-2: #f9f9f9;
       --border: #e0e0e0;
@@ -121,7 +121,7 @@
   }
 
   @container style(--theme: '💎') and style(--darkness: 1) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #1a1d23;
       --bg-2: #212833;
       --border: #3a4556;
@@ -148,7 +148,7 @@
   }
 
   @container style(--theme: '✨') and style(--darkness: 0) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #fff;
       --bg-2: #f9f9f9;
       --border: #e0e0e0;
@@ -175,7 +175,7 @@
   }
 
   @container style(--theme: '✨') and style(--darkness: 1) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #1e1f22;
       --bg-2: #2a2d32;
       --border: #3c3f44;
@@ -202,7 +202,7 @@
   }
 
   @container style(--theme: '🌳') and style(--darkness: 0) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #fafbf9;
       --bg-2: #f0f2ee;
       --border: #d4e7c5;
@@ -229,7 +229,7 @@
   }
 
   @container style(--theme: '🌳') and style(--darkness: 1) {
-    [data-id='lightboard-miniboard'] > * {
+    [data-id='lb-mini'] > * {
       --bg: #1c1f1b;
       --bg-2: #272a26;
       --border: #3a4a38;
@@ -255,11 +255,11 @@
     }
   }
 
-  [data-id='lightboard-miniboard'] .lb-reroll {
+  [data-id='lb-mini'] .lb-reroll {
     border-bottom: 2px solid var(--point);
   }
 
-  [data-id='lightboard-miniboard'] .lb-opener {
+  [data-id='lb-mini'] .lb-opener {
     background: linear-gradient(to right, var(--bg) 200px, transparent),
       0% 0% / 23px 23px repeat
         linear-gradient(
@@ -285,7 +285,7 @@
     font-weight: bold;
   }
 
-  [data-id='lightboard-miniboard'] .lb-opener > span::before {
+  [data-id='lb-mini'] .lb-opener > span::before {
     content: var(--prefix);
   }
 
@@ -324,14 +324,6 @@
     gap: 1ch;
     flex-wrap: wrap;
     font-size: 12px;
-  }
-
-  .lb-mini-text {
-    color: var(--fg) !important;
-    font-size: 14px;
-    line-height: 1.7;
-    margin: 0 !important;
-    white-space: pre-wrap;
   }
 
   /* #endregion shared */
@@ -467,7 +459,11 @@
   }
 
   .lb-mini-post-content > p {
+    font-size: 14px;
     color: inherit !important;
+    line-height: 1.7;
+    margin: 0 !important;
+    white-space: pre-wrap;
   }
 
   .lb-mini-hr {
@@ -500,6 +496,14 @@
     margin-bottom: 0;
   }
 
+  .lb-mini-comment-content {
+    color: var(--fg) !important;
+    font-size: 14px;
+    line-height: 1.7;
+    margin: 0 !important;
+    white-space: pre-wrap;
+  }
+
   @media (hover: hover) {
     .lb-mini-btn:hover {
       background: var(--point);
@@ -519,7 +523,7 @@
   }
 
   @media (max-width: 600px) {
-    [data-id='lightboard-miniboard'] {
+    [data-id='lb-mini'] {
       --pad-lr: 0;
     }
 

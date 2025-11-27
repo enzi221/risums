@@ -89,7 +89,7 @@ local function parseHeader(headerStr)
     return nil
   end
 
-  local lengthStr = bracketContent:match("^#?(%d+)")
+  local lengthStr = bracketContent:match("^(%d+)")
   if not lengthStr then
     return nil
   end
@@ -164,9 +164,15 @@ local function parseLines(text, config)
   end
 
   local parsed = {}
-  for _, line in ipairs(lines) do
+  for lineno, line in ipairs(lines) do
     if line ~= "" then
       local indent = #line:match("^( *)")
+      local remainder = indent % config.indent
+      if remainder ~= 0 then
+        error(string.format('Line %d: Indentation must be exact multiple of %d, but found %d spaces.', lineno,
+          config.indent, indent))
+      end
+
       local depth = math.floor(indent / config.indent)
       local content = line:sub(indent + 1)
 
@@ -449,12 +455,12 @@ local function decode(text, options)
     local content = lines[1].content
     local headerInfo = parseHeader(content)
 
-    if headerInfo then
+    if headerInfo and not headerInfo.key then
       local result, _ = decodeValue(lines, 1, 0, config, nil)
-      return headerInfo.key and { [headerInfo.key] = result } or result
+      return result
     end
 
-    if #lines == 1 then
+    if #lines == 1 and not headerInfo then
       local colonPos = findUnquotedChar(content, ":")
       if not colonPos then
         return parseValue(content)

@@ -1,0 +1,48 @@
+local triggerId = ''
+
+local function setTriggerId(tid)
+  triggerId = tid
+  if type(prelude) ~= 'nil' then
+    prelude.import(triggerId, 'toon.decode')
+    return
+  end
+  local source = getLoreBooks(triggerId, 'lightboard-prelude')
+  if not source or #source == 0 then
+    error('Failed to load lightboard-prelude.')
+  end
+  load(source[1].content, '@prelude', 't')()
+
+  prelude.import(triggerId, 'toon.decode')
+end
+
+function onOutput(triggerId, output)
+  setTriggerId(triggerId)
+
+  if not string.find(output, "</lb%-news>") then
+    output = output .. '\n</lb-news>'
+  end
+
+  -- Add id attribute if missing
+  local tagPattern = "(<lb%-news)([^>]*)(>)"
+  output = output:gsub(tagPattern, function(openTag, attrs, closeTag)
+    if attrs:find("id%s*=") then
+      return openTag .. attrs .. closeTag
+    end
+
+    local randomId = math.random(1, 999)
+    local newAttrs = attrs
+    if newAttrs:match("%S") then
+      -- Has other attributes, add space before id
+      newAttrs = newAttrs .. ' id="' .. randomId .. '"'
+    else
+      -- No other attributes
+      newAttrs = ' id="' .. randomId .. '"'
+    end
+
+    return openTag .. newAttrs .. closeTag
+  end)
+
+  return prelude.removeAllNodes(output, { 'lb-news', 'lb-process' })
+end
+
+return onOutput
