@@ -1,3 +1,8 @@
+--- Copyright (c) 2025 amonamona
+--- CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+--- TOON Decoder
+
 local DEFAULT_CONFIG = {
   indent = 2
 }
@@ -89,7 +94,7 @@ local function parseHeader(headerStr)
     return nil
   end
 
-  local lengthStr = bracketContent:match("^#?(%d+)")
+  local lengthStr = bracketContent:match("^(%d+)")
   if not lengthStr then
     return nil
   end
@@ -164,9 +169,15 @@ local function parseLines(text, config)
   end
 
   local parsed = {}
-  for _, line in ipairs(lines) do
+  for lineno, line in ipairs(lines) do
     if line ~= "" then
       local indent = #line:match("^( *)")
+      local remainder = indent % config.indent
+      if remainder ~= 0 then
+        error(string.format('Line %d: Indentation must be exact multiple of %d, but found %d spaces.', lineno,
+          config.indent, indent))
+      end
+
       local depth = math.floor(indent / config.indent)
       local content = line:sub(indent + 1)
 
@@ -244,7 +255,7 @@ local function processSiblings(lines, startIdx, targetDepth, delimiter, config)
     local sibHeaderInfo = parseHeader(siblingLine.content)
 
     if sibHeaderInfo and sibHeaderInfo.key then
-      local arr, nextIdx = decodeValue(lines, idx, targetDepth, config, delimiter)
+      local arr, nextIdx = decodeValue(lines, idx, targetDepth, config, delimiter, true)
       obj[sibHeaderInfo.key] = arr
       idx = nextIdx
     else
@@ -269,7 +280,7 @@ local function processSiblings(lines, startIdx, targetDepth, delimiter, config)
   return obj, idx
 end
 
-function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter)
+function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expectValue)
   local delimiter = parentDelimiter or ","
 
   if startIdx > #lines then
@@ -372,6 +383,10 @@ function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter)
 
   local headerInfo = parseHeader(content)
   if headerInfo then
+    if headerInfo.key and not expectValue then
+      return processSiblings(lines, startIdx, targetDepth, delimiter, config)
+    end
+
     local arr = {}
     local colonPos = findUnquotedChar(content, ":")
     if colonPos then
@@ -449,12 +464,12 @@ local function decode(text, options)
     local content = lines[1].content
     local headerInfo = parseHeader(content)
 
-    if headerInfo then
+    if headerInfo and not headerInfo.key then
       local result, _ = decodeValue(lines, 1, 0, config, nil)
-      return headerInfo.key and { [headerInfo.key] = result } or result
+      return result
     end
 
-    if #lines == 1 then
+    if #lines == 1 and not headerInfo then
       local colonPos = findUnquotedChar(content, ":")
       if not colonPos then
         return parseValue(content)
@@ -474,7 +489,7 @@ local function decode(text, options)
     local headerInfo = parseHeader(line.content)
 
     if headerInfo and headerInfo.key then
-      local arr, nextIdx = decodeValue(lines, idx, 0, config, nil)
+      local arr, nextIdx = decodeValue(lines, idx, 0, config, nil, true)
       obj[headerInfo.key] = arr
       idx = nextIdx
     else

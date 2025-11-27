@@ -1,0 +1,86 @@
+<style>
+  [data-id='lb-stats'] {
+    --bg: var(--risu-theme-bgcolor, #fff);
+    --fg: var(--FontColorStandard, #333);
+    --border: var(--FontColorStandard, #ddd);
+    --accent: var(--FontColorStandard, #666);
+    --radius: 8px;
+    --pad: 12px;
+  }
+
+  .lb-stats-container {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-sizing: border-box;
+    color: var(--fg);
+    container-name: lb-stats;
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    font-family: sans-serif;
+    gap: 8px;
+    padding: var(--pad);
+    position: relative;
+    margin-bottom: 1em;
+  }
+
+  .lb-stats-header {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85em;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+
+  .lb-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px 16px;
+    padding-top: 4px;
+  }
+
+  .lb-stats-item {
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Prevent overflow */
+  }
+
+  .lb-stats-full {
+    grid-column: 1 / -1;
+  }
+
+  .lb-stats-label {
+    color: var(--accent);
+    font-size: 0.75em;
+    margin-bottom: 2px;
+    opacity: 0.8;
+    text-transform: capitalize;
+  }
+
+  .lb-stats-value {
+    font-size: 0.95em;
+    font-weight: 500;
+    word-break: break-word;
+  }
+
+  .lb-stats-header .lb-reroll {
+    background: none;
+    border: none;
+    color: var(--fg);
+    cursor: pointer;
+    margin: -4px 0; /* compensate for header padding/border */
+  }
+
+  @container lb-stats (max-width: 480px) {
+    .lb-stats-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>

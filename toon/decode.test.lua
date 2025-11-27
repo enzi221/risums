@@ -350,6 +350,34 @@ describe("root arrays", function()
   end)
 end)
 
+describe("multiple root elements", function()
+  it("parses multiple root elements with headers", function()
+    local toon_str = [[posts[2]:
+  - title: A
+  - title: B
+topAds[1]:
+  - id: 1
+bottomAd:
+  text: bye]]
+    assertDeepEquals(toon.decode(toon_str), {
+      posts = { { title = "A" }, { title = "B" } },
+      topAds = { { id = 1 } },
+      bottomAd = { text = "bye" }
+    }, "parse multiple root elements with headers")
+  end)
+
+  it("parses multiple root elements with mixed headers and simple keys", function()
+    local toon_str = [[header[2]: 1,2
+simple: value
+footer[0]:]]
+    assertDeepEquals(toon.decode(toon_str), {
+      header = { 1, 2 },
+      simple = "value",
+      footer = {}
+    }, "parse mixed root elements")
+  end)
+end)
+
 describe("complex structures", function()
   it("parses mixed objects with arrays and nested objects", function()
     local toon_str = "user:\n  id: 123\n  name: Ada\n  tags[2]: reading,gaming\n  active: true\n  prefs[0]:"
@@ -362,6 +390,19 @@ describe("complex structures", function()
         prefs = {}
       }
     }, "parse complex structure")
+  end)
+
+  it("parses keys with headers as object properties", function()
+    local toon_str = [[histories:
+  Choi Yoo-jin[1]:
+    [2024-08-16, Morning] First met Yebinne Yang...]]
+    assertDeepEquals(toon.decode(toon_str), {
+      histories = {
+        ["Choi Yoo-jin"] = {
+          "[2024-08-16, Morning] First met Yebinne Yang..."
+        }
+      }
+    }, "parse key with header as object property")
   end)
 end)
 
@@ -433,37 +474,6 @@ describe("delimiter options", function()
 
   it("does not require quoting commas in object values when using non-comma delimiter elsewhere", function()
     assertDeepEquals(toon.decode("note: a,b"), { note = "a,b" }, "commas in object values")
-  end)
-end)
-
-describe("length marker option", function()
-  it("accepts length marker on primitive arrays", function()
-    assertDeepEquals(toon.decode("tags[#3]: reading,gaming,coding"), { tags = { "reading", "gaming", "coding" } },
-      "parse with length marker")
-  end)
-
-  it("accepts length marker on empty arrays", function()
-    assertDeepEquals(toon.decode("items[#0]:"), { items = {} }, "parse empty array with length marker")
-  end)
-
-  it("accepts length marker on tabular arrays", function()
-    local toon_str = "items[#2]{sku,qty,price}:\n  A1,2,9.99\n  B2,1,14.5"
-    assertDeepEquals(toon.decode(toon_str), {
-      items = {
-        { sku = "A1", qty = 2, price = 9.99 },
-        { sku = "B2", qty = 1, price = 14.5 }
-      }
-    }, "parse tabular with length marker")
-  end)
-
-  it("accepts length marker on nested arrays", function()
-    local toon_str = "pairs[#2]:\n  - [#2]: a,b\n  - [#2]: c,d"
-    assertDeepEquals(toon.decode(toon_str), { pairs = { { "a", "b" }, { "c", "d" } } }, "parse nested with length marker")
-  end)
-
-  it("works with custom delimiters and length marker", function()
-    assertDeepEquals(toon.decode("tags[#3|]: reading|gaming|coding"), { tags = { "reading", "gaming", "coding" } },
-      "parse with length marker and pipe")
   end)
 end)
 

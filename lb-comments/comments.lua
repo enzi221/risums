@@ -7,12 +7,16 @@ local triggerId = ''
 
 local function setTriggerId(tid)
   triggerId = tid
-  if type(prelude) ~= "nil" then return end
+  if type(prelude) ~= 'nil' then
+    prelude.import(tid, 'toon.decode')
+    return
+  end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
   if not source or #source == 0 then
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
+  prelude.import(tid, 'toon.decode')
 end
 
 ---@param tier string
@@ -31,80 +35,74 @@ local function grantMedal(tier)
 end
 
 --- Renders a node into HTML.
---- @param block table
+--- @param node Node
 --- @return string
-local function render(block)
-  local rawContent = block.content
+local function render(node)
+  local rawContent = node.content
   if not rawContent or rawContent == "" then
     return "[LightBoard Error: Empty Content]"
   end
 
   ---@class CommentsCommentData
-  ---@field Author string
-  ---@field AuthorTier string
-  ---@field Content string
-  ---@field Time string
+  ---@field author string
+  ---@field authorTier string
+  ---@field content string
+  ---@field time string
 
   ---@class CommentsPostData
-  ---@field Author string
-  ---@field AuthorTier string
-  ---@field Comments CommentsCommentData[]
-  ---@field Content string
-  ---@field Time string
-  ---@field Downvotes string
-  ---@field Upvotes string
+  ---@field author string
+  ---@field authorTier string
+  ---@field comments CommentsCommentData[]
+  ---@field content string
+  ---@field time string
+  ---@field downvotes string
+  ---@field upvotes string
 
   ---@type CommentsPostData[]
-  local posts = {}
+  local posts = prelude.toon.decode(node.content)
 
-  for _, postBlock in ipairs(prelude.extractBlocks("Post", rawContent)) do
-    ---@class CommentsPostData
-    local postData = prelude.parseBlock(postBlock, { "Post", "Comment" })
-    postData.Author = postData.Author or "익명"
+  for _, post in ipairs(posts) do
+    post.author = post.author or "익명"
 
-    local postAuthorSplat = prelude.split(postData.Author, ":")
+    local postAuthorSplat = prelude.split(post.author, ":")
     if #postAuthorSplat >= 2 then
-      postData.Author = postAuthorSplat[2]
-      postData.AuthorTier = postAuthorSplat[1] or ""
+      post.author = postAuthorSplat[2]
+      post.authorTier = postAuthorSplat[1] or ""
+    else
+      post.authorTier = ""
     end
 
-    postData.Comments = {}
+    for _, comment in ipairs(post.comments or {}) do
+      comment.author = comment.author or "익명"
 
-    for _, commentBlock in ipairs(prelude.extractBlocks("Comment", postBlock)) do
-      ---@type CommentsCommentData
-      local commentData = prelude.parseBlock(commentBlock)
-      commentData.Author = commentData.Author or "익명"
-
-      local commentAuthorSplat = prelude.split(commentData.Author, ":")
+      local commentAuthorSplat = prelude.split(comment.author, ":")
       if #commentAuthorSplat >= 2 then
-        commentData.Author = commentAuthorSplat[2]
-        commentData.AuthorTier = commentAuthorSplat[1] or ""
+        comment.author = commentAuthorSplat[2]
+        comment.authorTier = commentAuthorSplat[1] or ""
+      else
+        comment.authorTier = ""
       end
-
-      table.insert(postData.Comments, commentData)
     end
-
-    table.insert(posts, postData)
   end
 
   local post_es = {}
 
   if #posts > 0 then
     for i, post in ipairs(posts) do
-      if post.Content then
+      if post.content then
         local comment_es = {}
-        for _, comment in ipairs(post.Comments) do
+        for _, comment in ipairs(post.comments or {}) do
           local comment_e = h.div['lb-comment-reply-card'] {
             h.div['lb-comment-author-details'] {
               h.span['lb-comment-author'] {
-                grantMedal(comment.AuthorTier) .. comment.Author,
+                grantMedal(comment.authorTier) .. comment.author,
               },
               h.div['lb-comment-timestamp'] {
-                comment.Time or "-",
+                comment.time or "-",
               },
             },
             h.span['lb-comment-reply-content'] {
-              comment.Content,
+              comment.content,
             },
           }
           table.insert(comment_es, comment_e)
@@ -113,7 +111,7 @@ local function render(block)
         local repliesSection_e = nil
         if #comment_es > 0 then
           repliesSection_e = h.details['lb-comment-replies-section'] {
-            name = 'lightboard-comment-replies',
+            name = 'lb-comment-replies',
             h.summary {
               "대댓글 " .. #comment_es .. "개",
             },
@@ -127,10 +125,10 @@ local function render(block)
             h.div['lb-comment-header'] {
               h.div['lb-comment-author-details'] {
                 h.span['lb-comment-author'] {
-                  grantMedal(post.AuthorTier) .. post.Author,
+                  grantMedal(post.authorTier) .. post.author,
                 },
                 h.div['lb-comment-timestamp'] {
-                  post.Time or "-",
+                  post.time or "-",
                 },
               },
               h.div['lb-comment-actions'] {
@@ -138,18 +136,18 @@ local function render(block)
                   data_like = true,
                   '+',
                   h.span['lb-comment-count'] {
-                    post.Upvotes or '0',
+                    post.upvotes or '0',
                   },
                 },
                 h.span['lb-comment-action-button'] {
                   data_dislike = true,
                   '-',
                   h.span['lb-comment-count'] {
-                    post.Downvotes or '0',
+                    post.downvotes or '0',
                   },
                 },
                 h.button['lb-comment-add-reply'] {
-                  risu_btn = "lb-interaction__lightboard-comments__AddComment/Author:" .. post.Author .. "(" .. post.Time .. ")",
+                  risu_btn = "lb-interaction__lb-comments__AddComment/Author:" .. post.author .. "(" .. post.time .. ")",
                   type = "button",
                   h.lb_comment_icon { closed = true },
                   h.span "대댓글 달기"
@@ -157,7 +155,7 @@ local function render(block)
               },
             },
             h.span['lb-comment-content'] {
-              post.Content,
+              post.content,
             },
             repliesSection_e,
           },
@@ -172,9 +170,9 @@ local function render(block)
   end
 
   local html = h.div['lb-module-root'] {
-    data_id = 'lightboard-comment',
+    data_id = 'lb-comments',
     h.details['lb-collapsible'] {
-      name = 'lightboard-comment',
+      name = 'lb-comments',
       h.summary['lb-opener'] {
         h.span '댓글',
       },
@@ -183,7 +181,7 @@ local function render(block)
         h.div['lb-comment-card lb-comment-add-post-card'] {
           style = 'animation-delay:' .. #post_es * 0.1 .. 's',
           h.button['lb-comment-add-post'] {
-            risu_btn = "lb-interaction__lightboard-comments__AddPost",
+            risu_btn = "lb-interaction__lb-comments__AddPost",
             type = "button",
             h.span['lb-comment-add-post-header'] "댓글 작성",
             h.span['lb-comment-add-post-textarea'] {
@@ -197,7 +195,7 @@ local function render(block)
       },
     },
     h.button['lb-reroll'] {
-      risu_btn = 'lb-reroll__lightboard-comments',
+      risu_btn = 'lb-reroll__lb-comments',
       type = 'button',
       h.lb_reroll_icon {
         closed = true
@@ -213,38 +211,39 @@ local function main(data)
     return ""
   end
 
-  local output = ""
-  local lastIndex = 1
-
-  local extractionSuccess, extractionResult = pcall(prelude.extractNodes, 'lightboard-comments', data)
+  local extractionSuccess, extractionResult = pcall(prelude.queryNodes, 'lb-comments', data)
   if not extractionSuccess then
     print("[LightBoard] Comments extraction failed:", tostring(extractionResult))
     return data
   end
 
-  if extractionResult and #extractionResult > 0 then
-    for i, match in ipairs(extractionResult) do
-      if match.rangeStart > lastIndex then
-        output = output .. data:sub(lastIndex, match.rangeStart - 1)
-      end
-      local processSuccess, processResult = pcall(render, match)
+  local lastResult = extractionResult and extractionResult[#extractionResult] or nil
+  if not lastResult then
+    return data
+  end
+
+  local output = ''
+  local lastIndex = 1
+
+  for i = 1, #extractionResult do
+    local match = extractionResult[i]
+    if match.rangeStart > lastIndex then
+      output = output .. data:sub(lastIndex, match.rangeStart - 1)
+    end
+    if i == #extractionResult then
+      -- render lastResult in its original position
+      local processSuccess, processResult = pcall(render, lastResult)
       if processSuccess then
         output = output .. processResult
       else
-        print("[LightBoard] Comment parsing failed in block " .. i .. ":", tostring(processResult))
+        print("[LightBoard] Comment parsing failed:", tostring(processResult))
         output = output .. "\n\n<!-- LightBoard Block Error -->"
       end
-      lastIndex = match.rangeEnd + 1
     end
-  else
-    lastIndex = 1
+    lastIndex = match.rangeEnd + 1
   end
 
-  if lastIndex <= #data then
-    output = output .. data:sub(lastIndex)
-  end
-
-  return output
+  return output .. data:sub(lastIndex)
 end
 
 listenEdit(

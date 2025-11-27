@@ -43,41 +43,28 @@ local function xor(str)
 end
 
 local function main(output)
-  if not string.find(output, '</lightboard%-stage>') then
-    output = output .. '\n</lightboard-stage>'
+  if not string.find(output, '</lb%-stage>') then
+    output = output .. '\n</lb-stage>'
   end
 
-  local allBlocks = prelude.extractNodes('lightboard-stage', output)
+  local allBlocks = prelude.queryNodes('lb-stage', output)
   local body = nil
-  if #allBlocks == 1 then
+  if #allBlocks >= 1 then
     body = allBlocks[1]
   end
 
   if not body then
-    print('[LightBoard] No <lightboard-stage> block found')
+    print('[LightBoard] No <lb-stage> block found')
     return ''
   end
 
   local data = prelude.toon.decode(body.content)
   if not data or not data.objective or not data.phase or not data.episodes then
     print('[LightBoard] Stage content invalid')
-    return '<lb-lazy identifier="lightboard-stage"></lb-lazy>'
+    return '<lb-lazy id="lb-stage"></lb-lazy>'
   end
 
-  local deepEncodedEpisodes = {}
-  for _, episode in ipairs(data.episodes) do
-    table.insert(deepEncodedEpisodes, json.encode(episode))
-  end
-
-  setChatVar(triggerId, 'lightboard-stage-key', triggerId)
-  setChatVar(triggerId, 'lightboard-stage-raw', body.content)
-  setChatVar(triggerId, 'lightboard-stage-objective', json.encode(data.objective))
-  setChatVar(triggerId, 'lightboard-stage-phase', json.encode(data.phase))
-  setChatVar(triggerId, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes))
-  setChatVar(triggerId, 'lightboard-stage-divergence', data.divergence)
-  setChatVar(triggerId, 'lightboard-stage-comment', data.comment)
-
-  return '<lightboard-stage key="' .. triggerId .. '">' .. xor(body.content) .. '</lightboard-stage>'
+  return '<lb-stage>' .. xor(body.content) .. '</lb-stage>'
 end
 
 function onOutput(triggerId, output)

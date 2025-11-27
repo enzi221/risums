@@ -56,7 +56,7 @@ local function main(data)
     return ""
   end
 
-  local nodes = prelude.extractNodes('lightboard-stage', data)
+  local nodes = prelude.extractNodes('lb-stage', data)
   if #nodes == 0 then
     return data
   end
@@ -105,7 +105,7 @@ local function main(data)
   local playing = phase.title .. (nextEpisode and ' - ' .. nextEpisode.title or '')
 
   local html = h.div['lb-module-root'] {
-    data_id = 'lightboard-stage',
+    data_id = 'lb-stage',
     h.button['lb-stage-entry'] {
       popovertarget = id,
       type = 'button',
@@ -122,7 +122,7 @@ local function main(data)
       h.div {
         style = 'float: right;',
         h.button['lb-reroll'] {
-          risu_btn = "lb-interaction__lightboard-stage__Regenerate",
+          risu_btn = "lb-interaction__lb-stage__Regenerate",
           type = 'button',
           h.lb_reroll_icon { closed = true }
         },
@@ -133,6 +133,9 @@ local function main(data)
         },
         h.h2['lb-stage-phase'] {
           phase.title,
+          h.span {
+            ' (' .. phase.stage .. ')'
+          }
         },
         h.p {
           phase.content,
@@ -148,19 +151,19 @@ local function main(data)
       },
       h.details {
         h.summary 'Debug (Spoilers)',
-        h.p {
+        h.div {
           'Objective: ' .. (objective.content or ''),
         },
-        h.p {
+        h.div {
           'Completion: ' .. (objective.completion or ''),
         },
-        h.p {
+        h.div {
           'Divergence: ' .. (content.divergence or ''),
         },
-        h.p {
+        h.div {
           'Comment: ' .. (comment or ''),
         },
-        h.p {
+        h.div {
           'History: ' .. (history or ''),
         }
       }
@@ -193,77 +196,93 @@ listenEdit(
   end
 )
 
-onStart = async(function(tid)
-  setTriggerId(tid)
+listenEdit(
+  "editRequest",
+  function(tid, data)
+    setTriggerId(tid)
 
-  local currentKey = getChatVar(tid, 'lightboard-stage-key')
+    local latestContent = nil
+    local foundLatest = false
 
-  if not currentKey or currentKey == '' or currentKey == 'null' then
-    setChatVar(tid, 'lightboard-stage-key', '')
-    setChatVar(tid, 'lightboard-stage-raw', '')
-    setChatVar(tid, 'lightboard-stage-objective', '')
-    setChatVar(tid, 'lightboard-stage-phase', '')
-    setChatVar(tid, 'lightboard-stage-episodes', '')
-    setChatVar(tid, 'lightboard-stage-comment', '')
-    setChatVar(tid, 'lightboard-stage-divergence', '')
-    return
-  end
+    -- find the latest <lb-stage>, remove all
+    for i = #data, 1, -1 do
+      local msg = data[i]
+      local content = msg.content
 
-  -- Find the nearest chat with <lightboard-stage-x>
-  local fullChat = getFullChat(tid)
-  local stageChat = nil
-  local searchStart = #fullChat
+      if not foundLatest then
+        local nodes = prelude.extractNodes('lb-stage', content)
+        if nodes and #nodes > 0 then
+          local node = nodes[#nodes] -- Take the last node in the message
+          local success, res = pcall(function()
+            return prelude.toon.decode(xordecrypt(node.content))
+          end)
 
-  for i = searchStart, math.max(searchStart - 10, 1), -1 do
-    if fullChat[i].role == "char" and string.find(fullChat[i].data, '<lightboard%-stage') then
-      stageChat = fullChat[i]
-      break
+          if success and res then
+            latestContent = res
+            foundLatest = true
+          end
+        end
+      end
+
+      msg.content = string.gsub(content, '<lb%-stage[^>]*>.-</lb%-stage>', '')
     end
+
+    -- Inject formatted state into <lb-stage-reserve>
+    local parts = {}
+    if latestContent then
+      if latestContent.objective then
+        table.insert(parts, "#### Objective")
+        if latestContent.objective.title then
+          table.insert(parts, latestContent.objective.title)
+        end
+        if latestContent.objective.content then
+          table.insert(parts, latestContent.objective.content)
+        end
+        if latestContent.objective.completion then
+          table.insert(parts, "Completion: " .. latestContent.objective.completion)
+        end
+      end
+
+      if latestContent.phase then
+        table.insert(parts, "\n#### Phase")
+        local title = latestContent.phase.title or "Unknown"
+        local stage = latestContent.phase.stage or "unknown"
+        table.insert(parts, title .. " (" .. stage .. ")")
+        if latestContent.phase.content then
+          table.insert(parts, latestContent.phase.content)
+        end
+      end
+
+      if latestContent.episodes and #latestContent.episodes > 0 then
+        table.insert(parts, "\n#### Episodes")
+        for _, ep in ipairs(latestContent.episodes) do
+          local stage = ep.stage or "?"
+          local title = ep.title or "?"
+          local state = ep.state or "?"
+          local content = ep.content or ""
+          table.insert(parts, string.format("- [%s] %s (%s): %s", stage, title, state, content))
+        end
+      end
+
+      if latestContent.comment and latestContent.comment ~= "none" and latestContent.comment ~= "" then
+        table.insert(parts, "\n#### System Comment")
+        table.insert(parts, latestContent.comment)
+      end
+    else
+      table.insert(parts, "(None defined yet)")
+    end
+
+    local formattedStr = table.concat(parts, "\n")
+
+    for i = 1, #data do
+      local content = data[i].content
+      local s, e = string.find(content, '<lb%-stage%-reserve />')
+      if s then
+        data[i].content = string.sub(content, 1, s - 1) .. formattedStr .. string.sub(content, e + 1)
+        break
+      end
+    end
+
+    return data
   end
-
-  if not stageChat then
-    setChatVar(tid, 'lightboard-stage-key', '')
-    setChatVar(tid, 'lightboard-stage-raw', '')
-    setChatVar(tid, 'lightboard-stage-objective', '')
-    setChatVar(tid, 'lightboard-stage-phase', '')
-    setChatVar(tid, 'lightboard-stage-episodes', '')
-    setChatVar(tid, 'lightboard-stage-comment', '')
-    setChatVar(tid, 'lightboard-stage-divergence', '')
-
-    stopChat(tid)
-    alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")
-    return
-  end
-
-  local stageNodes = prelude.extractNodes('lightboard-stage', stageChat.data)
-  if #stageNodes == 0 then
-    return
-  end
-
-  local stageNode = stageNodes[1]
-  local extractedKey = stageNode.attributes.key
-
-  if not extractedKey or currentKey == extractedKey then
-    return
-  end
-
-  -- Keys don't match, need to update variables
-  local decrypted = xordecrypt(stageNode.content)
-
-  local data = prelude.toon.decode(decrypted)
-  local deepEncodedEpisodes = {}
-  for _, episode in ipairs(data.episodes) do
-    table.insert(deepEncodedEpisodes, json.encode(episode))
-  end
-
-  setChatVar(tid, 'lightboard-stage-key', extractedKey)
-  setChatVar(tid, 'lightboard-stage-raw', decrypted)
-  setChatVar(tid, 'lightboard-stage-objective', json.encode(data.objective) or '')
-  setChatVar(tid, 'lightboard-stage-phase', json.encode(data.phase) or '')
-  setChatVar(tid, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes) or '')
-  setChatVar(tid, 'lightboard-stage-comment', data.comment or '')
-  setChatVar(tid, 'lightboard-stage-divergence', data.divergence or '')
-
-  stopChat(tid)
-  alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")
-end)
+)

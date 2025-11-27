@@ -15,7 +15,7 @@
     color: var(--fg, #f8f8f2);
     display: flex;
     gap: 8px;
-    margin: 20px 0;
+    margin: 12px 0;
   }
 
   .lb-collapsible,
@@ -39,6 +39,11 @@
     height: 14px;
     margin-left: 0.5ch;
     width: 14px;
+  }
+
+  .lb-lazyloader-message {
+    font-family: monospace;
+    font-size: smaller;
   }
 
   .lb-collapsible-animated {
@@ -69,8 +74,8 @@
     color: var(--fg, #f8f8f2);
     cursor: pointer;
     display: flex;
-    height: 36px;
-    padding: 8px 16px;
+    height: 32px;
+    padding: 4px 16px;
     font-size: 1em;
     font-weight: 500;
     text-align: left;
@@ -158,10 +163,10 @@
     display: flex;
     flex: 0 0 auto;
     font-size: 10px;
-    height: 36px;
+    height: 32px;
     justify-content: center;
     position: relative;
-    width: 36px;
+    width: 32px;
   }
   .lb-reroll:hover {
     animation: gentle-shake 0.5s ease-in-out;
@@ -260,7 +265,7 @@
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 640px) {
     .lb-collapsible[open] + .lb-reroll {
       display: none;
     }

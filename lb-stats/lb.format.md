@@ -1,0 +1,6 @@
+<lb-stats>
+time: YYYY-MM-DD (DayOfWeek) HH:MM:SS
+location: ...
+weather: ..., #°C
+...
+</lb-stats>

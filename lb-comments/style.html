@@ -1,0 +1,283 @@
+<style>
+  [data-id='lb-comments'] {
+    --bg: #3a3c4e;
+    --bg2: #313342;
+    --border: #5c5d70;
+    --border-r: 12px;
+    --border-r-2: 8px;
+    --g1: #6e42ffff;
+    --g2: #fff200ff;
+    --g3: #ffd494ff;
+    --g4: #fffcd6ff;
+    --fg: #f8f8f2;
+    --fg2: #e0e0e0;
+  }
+
+  [data-id='lb-comments'] .lb-opener::after {
+    background: radial-gradient(circle farthest-side at 72% 0% in oklch shorter hue, var(--g1) 0%, #ffffff00 100%),
+      linear-gradient(to right in oklch shorter hue, var(--g2) 0%, #1a1aff00 100%),
+      radial-gradient(circle farthest-corner at 100% 52% in lab, var(--g3) 0%, #0000 100%),
+      radial-gradient(circle farthest-corner at 0% 51%, var(--g4) 0%, #0000 47%),
+      linear-gradient(to left in oklch shorter hue, var(--bg, #3a3c4eff) 16%, #0000 100%);
+    background-blend-mode: soft-light;
+    background-position: 0 0;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 20px 100%);
+    height: 36px;
+    mix-blend-mode: lighten;
+  }
+
+  .lb-comment-author-details {
+    align-items: center;
+    display: flex;
+    gap: 0.5em;
+    flex-grow: 1;
+    margin-right: 1em;
+  }
+  .lb-comment-author {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .lb-comment-timestamp {
+    color: var(--fg2);
+    font-size: 10px;
+    opacity: 0.67;
+  }
+
+  .lb-comment-container {
+    border-radius: var(--border-r);
+    color: var(--fg2);
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    gap: 0.6em;
+    line-height: 1.6;
+    margin-top: 0.6em;
+  }
+
+  @keyframes lb-comment-card-fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .lb-comment-card {
+    animation-timing-function: ease-out;
+    background-color: var(--bg);
+    border-radius: var(--border-r);
+    opacity: 0;
+    overflow: hidden;
+    padding: 10px 16px 14px;
+  }
+  [name='lb-comments'][open] > * > .lb-comment-card {
+    animation-duration: 0.25s;
+    animation-fill-mode: forwards;
+    animation-name: lb-comment-card-fade-in;
+  }
+  [name='lb-comments']:not([open]) > * > .lb-comment-card {
+    animation-fill-mode: none;
+    animation-name: none;
+  }
+
+  .lb-comment-card:first-child {
+    margin-top: 0;
+  }
+
+  .lb-comment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .lb-comment-content {
+    color: var(--fg2);
+    display: block;
+    line-height: 1.65;
+    margin: 0.35em 0 0;
+    white-space: pre-wrap;
+    word-break: keep-all;
+  }
+
+  .lb-comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    user-select: none;
+  }
+  .lb-comment-action-button {
+    align-items: center;
+    background: 0 0;
+    border: none;
+    color: var(--fg2);
+    display: flex;
+    gap: 0.28em;
+    font-size: 0.8em;
+    border-radius: 0.42em;
+    transition: background-color 0.1s;
+  }
+  [data-like] {
+    opacity: 0.67;
+  }
+  [data-dislike] {
+    opacity: 0.34;
+  }
+
+  .lb-comment-add-reply {
+    align-items: center;
+    border-radius: 4px;
+    display: flex;
+    font-size: 12px;
+    gap: 4px;
+    padding: 2px 4px;
+    transition: background 100ms ease;
+  }
+  .lb-comment-add-reply:hover {
+    background: #6b768d33;
+  }
+  .lb-comment-add-reply > svg {
+    height: 12x;
+    width: 12px;
+  }
+
+  .lb-comment-replies-section {
+    --trans-duration: 0.2s;
+    background-color: var(--bg2);
+    display: flex;
+    flex-direction: column;
+    margin: 10px -16px -14px;
+    padding: 10px 16px 10px;
+  }
+  .lb-comment-replies-section[open]::details-content {
+    opacity: 1;
+    transform: translateY(0);
+    transition-duration: 0.2s;
+    transition-property: opacity, transform;
+    transition-timing-function: ease-out;
+  }
+  .lb-comment-replies-section:not([open])::details-content {
+    opacity: 0;
+    transform: translateY(-2px);
+    transition-duration: 0.2s;
+  }
+
+  .lb-comment-replies-section > summary {
+    cursor: pointer;
+    font-size: 12px;
+    /* list-style: none; */
+    margin: -10px -16px;
+    padding: 10px 16px;
+    user-select: none;
+  }
+
+  .lb-comment-reply-card {
+    padding: 4px 0;
+    position: relative;
+  }
+  .lb-comment-reply-card:first-of-type {
+    margin-top: 8px;
+  }
+  .lb-comment-reply-card:last-child {
+    margin-bottom: 0;
+  }
+  .lb-comment-reply-content {
+    color: var(--fg2);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: keep-all;
+  }
+  
+  .lb-comment-add-post-card {
+    padding: 8px 16px;
+  }
+
+  .lb-comment-add-post {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .lb-comment-add-post-header {
+    align-self: flex-start;
+    font-size: 12px;
+  }
+
+  .lb-comment-add-post-textarea {
+    background: var(--bg2);
+    border-radius: var(--border-r-2);
+    color: rgb(from var(--fg2) r g b/0.25);
+    cursor: text;
+    display: block;
+    flex-grow: 1;
+    font-size: 12px;
+    height: 96px;
+    overflow: hidden;
+    padding: 8px;
+    position: relative;
+    text-align: left;
+    width: 100%;
+  }
+
+  .lb-comment-add-post-button {
+    border-top: 1px solid var(--border);
+    cursor: default;
+    display: flex;
+    inset: auto 0 0;
+    justify-content: flex-end;
+    position: absolute;
+  }
+
+  .lb-comment-add-post-button > span {
+    align-items: center;
+    border-left: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    font-size: 14px;
+    gap: 4px;
+    padding: 4px 8px;
+    transition: background 100ms ease;
+  }
+  .lb-comment-add-post-button > span:hover {
+    background: #6b768d33;
+  }
+  .lb-comment-add-post-button > span > svg {
+    height: 14x;
+    width: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .lb-comment-card {
+      padding: 8px 12px 8px;
+    }
+    .lb-comment-header {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.4em;
+    }
+    .lb-comment-actions {
+      gap: 0.4em;
+    }
+    .lb-comment-action-button {
+      padding: 0.1em;
+    }
+    .lb-comment-content {
+      margin-top: 10px;
+    }
+    .lb-comment-replies-section {
+      margin: 8px -12px -8px;
+      padding: 8px 12px 8px;
+    }
+    .lb-comment-replies-section > summary {
+      margin: -8px -12px;
+      padding: 8px 12px;
+    }
+
+    .lb-comment-reply-card:first-of-type {
+      margin-top: 6px;
+    }
+  }
+</style>

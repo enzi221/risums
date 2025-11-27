@@ -1,0 +1,153 @@
+<style>
+  .astarot-card {
+    aspect-ratio: 2.75 / 4.75;
+    background-color: white;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    border-radius: 5%/2.9%;
+  }
+
+  .astarot-floor {
+    aspect-ratio: 4/3;
+    background: url("{{raw::astarot-floor.jpg}}") #f5f5f5 center no-repeat;
+    background-size: cover;
+    container-type: size;
+    position: relative;
+    width: 100%;
+    max-width: 1000px;
+    margin: 20px auto;
+    border-radius: 12px;
+  }
+
+  .astarot-spread-card-wrapper {
+    aspect-ratio: 2.75 / 4.75;
+    cursor: pointer;
+    position: absolute;
+    transition: transform 0.5s ease, z-index 0.5s linear allow-discrete;
+    width: 10cqw;
+  }
+  .astarot-spread-card-wrapper:hover {
+    transform: rotate(0deg) !important;
+    transition: transform 0.5s ease, z-index 0.5s linear;
+    z-index: 1000;
+  }
+
+  .astarot-spread-card {
+    backface-visibility: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    container-type: size;
+    left: 0;
+    top: 0;
+    width: 10cqw;
+    pointer-events: none;
+    position: absolute;
+    transition: all 0.5s ease;
+    transform-style: preserve-3d;
+  }
+  .astarot-spread-card::after {
+    backface-visibility: hidden;
+    background: url("{{raw::astarot-backface.jpg}}") center no-repeat;
+    background-size: cover;
+    border-radius: 5%/2.9%;
+    content: '';
+    inset: 0;
+    position: absolute;
+    transform: rotateY(180deg);
+  }
+
+  .astarot-spread-card::before {
+    color: #fff;
+    content: attr(data-number);
+    font-size: 15cqw;
+    font-family: serif;
+    line-height: 1;
+    position: absolute;
+    text-align: right;
+    text-shadow: -2px 2px 0px black;
+  }
+
+  .astarot-spread-card::before {
+    top: 0;
+    right: 0;
+    transform: translate(-33%, 25%);
+  }
+
+  .astarot-spread-card-wrapper:hover .astarot-spread-card {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    left: calc(50cqw - var(--card-x));
+    top: calc(50cqh - var(--card-y));
+    width: 40cqw;
+    transform: translate(-50%, -50%) rotate(0deg) !important;
+    z-index: 1000;
+  }
+
+  .astarot-spread-card-wrapper:hover input:checked + .astarot-spread-card {
+    transform: translate(-50%, -50%) rotate(0deg) rotateY(-180deg) !important;
+  }
+
+  .astarot-deck-inst {
+    text-align: center;
+  }
+
+  .astarot-deck-card {
+    width: 10cqw;
+    background-image: url("{{raw::astarot-backface.jpg}}");
+    container-type: size;
+    cursor: pointer;
+    position: absolute;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+  }
+
+  .astarot-deck-card:hover:not(:disabled) {
+    transform: rotate(var(--rotation)) translateY(-2cqh) !important;
+    z-index: 100 !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .astarot-deck-card[data-active="true"]::after {
+    background: #fab12a;
+    content: '';
+    inset: 0;
+    opacity: 0.2;
+    position: absolute;
+  }
+
+  .astarot-deck-card:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .astarot-desc-card {
+    float: left;
+    margin: 0 1em 2em 0;
+    width: 60px;
+  }
+  .astarot-desc-card[data-reversed] {
+    transform: rotate(180deg);
+  }
+
+  .astarot-button {
+    border-block-width: 6px;
+    border-image: url({{raw::astarot-button.png}}) stretch;
+    border-image-slice: 12 62 fill;
+    border-image-outset: 0 15px;
+    border-image-width: 6px 31px;
+    border-inline-width: 17px;
+    border-style: solid;
+    display: block;
+    line-height: 43px;
+    margin: 0 auto;
+    min-width: 200px;
+    transition: all 0.1s ease;
+  }
+  .astarot-button:disabled {
+    cursor: not-allowed;
+    filter: grayscale(1);
+    opacity: 0.5;
+  }
+  .astarot-button:not(:disabled):hover {
+    box-shadow: 0 0 8px rgb(from #d5c093 r g b/0.5);
+  }
+</style>

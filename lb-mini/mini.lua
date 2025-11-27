@@ -7,82 +7,60 @@ local triggerId = ''
 
 local function setTriggerId(tid)
   triggerId = tid
-  if type(prelude) ~= "nil" then return end
+  if type(prelude) ~= 'nil' then
+    prelude.import(tid, 'toon.decode')
+    return
+  end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
   if not source or #source == 0 then
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
+  prelude.import(tid, 'toon.decode')
 end
 
 ---Renders a node into HTML.
----@param block table
+---@param node Node
 ---@return string
-local function render(block)
-  local rawContent = block.content
+local function render(node)
+  local rawContent = node.content
   if not rawContent or rawContent == "" then
     return "[LightBoard Error: Empty Content]"
   end
 
   ---@class MiniboardCommentData
-  ---@field Author string
-  ---@field Content string
-  ---@field Time string
+  ---@field author string
+  ---@field content string
+  ---@field time string
 
   ---@class MiniboardPostData
-  ---@field Author string
-  ---@field Comments MiniboardCommentData[]
-  ---@field Content string
-  ---@field Time string
-  ---@field Title string
-  ---@field Downvotes string
-  ---@field Upvotes string
+  ---@field author string
+  ---@field comments MiniboardCommentData[]
+  ---@field content string
+  ---@field time string
+  ---@field title string
+  ---@field downvotes string
+  ---@field upvotes string
 
   ---@type MiniboardPostData[]
-  local posts = {}
-
-  for _, postBlock in ipairs(prelude.extractBlocks("Post", rawContent)) do
-    ---@class MiniboardPostData
-    local postData = prelude.parseBlock(postBlock, { "Post", "Comment" })
-    postData.Author = postData.Author or "익명"
-    postData.Comments = {}
-
-    for _, commentBlock in ipairs(prelude.extractBlocks("Comment", postBlock)) do
-      ---@type CommentsCommentData
-      local commentData = prelude.parseBlock(commentBlock)
-      commentData.Author = commentData.Author or "익명"
-
-      if commentData.Author or commentData.Content then
-        table.insert(postData.Comments, commentData)
-      end
-    end
-
-    table.insert(posts, postData)
-  end
+  local posts = prelude.toon.decode(node.content)
 
   local post_es = {}
-
   if #posts > 0 then
     for _, post in ipairs(posts) do
-      local postTitle = post.Title or "제목 없음"
-      local postTime = post.Time or "시간 정보 없음"
-      local postUpvotes = post.Upvotes or '1'
-      local postDownvotes = post.Downvotes or '1'
-      local postContent = post.Content or ""
-
       local comment_es = {}
-      for _, comment in ipairs(post.Comments) do
+      for _, comment in ipairs(post.comments) do
         local comment_e = h.div['lb-mini-comment'] {
           h.div['lb-mini-meta'] {
             h.span['lb-mini-author'] {
-              comment.Author,
+              comment.author,
             },
             h.span['lb-mini-time'] {
-              (comment.Time or "")
+              (comment.time or "")
             }
           },
-          h.p['lb-mini-text'] {
-            comment.Content
+          h.p['lb-mini-comment-content'] {
+            comment.content
           }
         }
 
@@ -90,38 +68,38 @@ local function render(block)
       end
 
       table.insert(post_es, h.details['lb-mini-post'] {
-        name = 'lightboard-miniboard-post',
+        name = 'lb-mini-post',
         h.summary['lb-mini-post-summary'] {
           h.div['lb-mini-post-title-container'] {
             h.span['lb-mini-post-title-text'] {
-              postTitle,
+              post.title,
             },
             h.div['lb-mini-meta'] {
               h.span['lb-mini-author'] {
-                post.Author,
+                post.author,
               },
               h.span['lb-mini-time'] {
-                postTime,
+                post.time,
               },
               h.span {
-                "▲ " .. postUpvotes,
+                "▲ " .. post.upvotes,
               },
               h.span {
-                "▼ " .. postDownvotes,
+                "▼ " .. post.downvotes,
               },
             },
           },
         },
         h.div['lb-mini-post-content'] {
-          h.p['lb-mini-text'] {
-            postContent,
+          h.p {
+            post.content,
           },
           h.hr['lb-mini-hr'] { void = true },
           h.div['lb-mini-rowgap lb-mini-comments'] {
             h.div['lb-mini-comments-header'] {
               h.span['lb-mini-comments-heading'] '댓글',
               h.button['lb-mini-btn'] {
-                risu_btn = "lb-interaction__lightboard-miniboard__AddComment/Title:" .. postTitle,
+                risu_btn = "lb-interaction__lb-mini__AddComment/Title:" .. post.title,
                 type = "button",
                 h.lb_comment_icon { closed = true },
                 "댓글 달기"
@@ -141,9 +119,9 @@ local function render(block)
 
   local id = 'lb-mini-' .. math.random()
 
-  local boardTitle = block.attributes.name or "미니보드"
+  local boardTitle = node.attributes.name or "미니보드"
   local html = h.div['lb-module-root'] {
-    data_id = 'lightboard-miniboard',
+    data_id = 'lb-mini',
     h.button['lb-collapsible'] {
       popovertarget = id,
       type = 'button',
@@ -159,12 +137,12 @@ local function render(block)
           boardTitle
         },
         h.button['lb-mini-btn'] {
-          risu_btn = "lb-interaction__lightboard-miniboard__ChangeBoard",
+          risu_btn = "lb-interaction__lb-mini__ChangeBoard",
           type = "button",
           "게시판 둘러보기"
         },
         h.button['lb-mini-btn'] {
-          risu_btn = "lb-interaction__lightboard-miniboard__AddPost",
+          risu_btn = "lb-interaction__lb-mini__AddPost",
           style = 'margin-left:auto',
           type = "button",
           h.lb_comment_icon { closed = true },
@@ -183,7 +161,7 @@ local function render(block)
       }
     },
     h.button['lb-reroll'] {
-      risu_btn = 'lb-reroll__lightboard-miniboard',
+      risu_btn = 'lb-reroll__lb-mini',
       type = 'button',
       h.lb_reroll_icon { closed = true }
     },
@@ -193,42 +171,37 @@ local function render(block)
 end
 
 local function main(data)
-  if not data or data == "" then
-    return ""
+  if not data or data == '' then
+    return ''
   end
 
-  local output = ""
-  local lastIndex = 1
-
-  local extractionSuccess, extractionResult = pcall(prelude.extractNodes, 'lightboard-miniboard', data)
+  local extractionSuccess, extractionResult = pcall(prelude.queryNodes, 'lb-mini', data)
   if not extractionSuccess then
     print("[LightBoard] Miniboard extraction failed:", tostring(extractionResult))
     return data
   end
 
-  if extractionResult and #extractionResult > 0 then
-    for i, match in ipairs(extractionResult) do
-      if match.rangeStart > lastIndex then
-        output = output .. data:sub(lastIndex, match.rangeStart - 1)
-      end
-      local processSuccess, processResult = pcall(render, match)
-      if processSuccess then
-        output = output .. processResult
-      else
-        print("[LightBoard] Miniboard parsing failed in block " .. i .. ":", tostring(processResult))
-        output = output .. "\n\n<!-- LightBoard Block Error -->"
-      end
-      lastIndex = match.rangeEnd + 1
+  local lastResult = extractionResult and extractionResult[#extractionResult] or nil
+  if not lastResult then
+    return data
+  end
+
+  local output = ''
+  local lastIndex = 1
+
+  for i = 1, #extractionResult do
+    local match = extractionResult[i]
+    if match.rangeStart > lastIndex then
+      output = output .. data:sub(lastIndex, match.rangeStart - 1)
     end
-  else
-    lastIndex = 1
+    if i == #extractionResult then
+      -- render lastResult in its original position
+      output = output .. render(lastResult)
+    end
+    lastIndex = match.rangeEnd + 1
   end
 
-  if lastIndex <= #data then
-    output = output .. data:sub(lastIndex)
-  end
-
-  return output
+  return output .. data:sub(lastIndex)
 end
 
 listenEdit(
@@ -238,7 +211,7 @@ listenEdit(
 
     if meta and meta.index ~= nil then
       local position = meta.index - getChatLength(triggerId)
-      if position < -5 then
+      if position < -9 then
         return data
       end
     end
@@ -248,7 +221,7 @@ listenEdit(
       return result
     else
       print("[LightBoard] Miniboard display failed:", tostring(result))
-      return data
+      return data .. '<lb-lazy id="lb-mini">오류: ' .. result .. '</lb-lazy>'
     end
   end
 )

@@ -7,16 +7,20 @@ local triggerId = ''
 
 local function setTriggerId(tid)
   triggerId = tid
-  if type(prelude) ~= "nil" then return end
+  if type(prelude) ~= 'nil' then
+    prelude.import(tid, 'toon.decode')
+    return
+  end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
   if not source or #source == 0 then
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
+  prelude.import(tid, 'toon.decode')
 end
 
 ---@param author string
----@return { ip: string?, name: string, rank: string?, type?: 'F' | 'S' }
+---@return { ip: string?, name: string, rank: string?, authorType?: 'F' | 'S' }
 local function parseAuthorInfo(author)
   local fs, nick, rank = table.unpack(prelude.split(author, ':'))
   if rank then
@@ -24,7 +28,7 @@ local function parseAuthorInfo(author)
       ip = nil,
       name = nick or 'ㅇㅇ',
       rank = rank,
-      type = fs
+      authorType = fs
     }
   else
     local nick_, ip = table.unpack(prelude.split(author, '('))
@@ -32,101 +36,87 @@ local function parseAuthorInfo(author)
       ip = (ip or ''):sub(1, -2),
       name = nick_ or 'ㅇㅇ',
       rank = nil,
-      type = nil
+      authorType = nil
     }
   end
 end
 
----@param authorData { Author: string; AuthorIP: string?; AuthorRank: string?; AuthorType?: 'F' | 'S'?; }
+---@param authorData { author: string; authorIP: string?; authorRank: string?; authorType?: 'F' | 'S'?; }
 ---@return table
 local function assembleAuthorDisplay(authorData)
   local hunterRankDisplay = nil
-  if authorData.AuthorRank and authorData.AuthorRank ~= "" then
+  if authorData.authorRank and authorData.authorRank ~= "" then
     hunterRankDisplay = h.span['lb-hn-level lb-hn-rank-' ..
-    string.lower(authorData.AuthorRank)] {
-      authorData.AuthorRank
+    string.lower(authorData.authorRank)] {
+      authorData.authorRank
     }
   end
 
   local nickTypeIcon = nil
-  if authorData.AuthorType == 'F' then
+  if authorData.authorType == 'F' then
     nickTypeIcon = h.span['lb-hn-icon-fixed'] "고"
-  elseif authorData.AuthorType == 'S' then
+  elseif authorData.authorType == 'S' then
     nickTypeIcon = h.span['lb-hn-icon-semi'] "반"
   end
 
   local ip = nil
-  if authorData.AuthorIP and authorData.AuthorIP ~= "" then
+  if authorData.authorIP and authorData.authorIP ~= "" then
     ip = h.span['lb-hn-writer-ip'] {
-      "(" .. authorData.AuthorIP .. ")"
+      "(" .. authorData.authorIP .. ")"
     }
   end
 
   return {
     hunterRankDisplay or '',
-    authorData.Author,
+    authorData.author,
     nickTypeIcon or '',
     ip or '',
   }
 end
 
-local function render(block)
-  local rawContent = block.content
+local function render(node)
+  local rawContent = node.content
   if not rawContent or rawContent == "" then
     return "[LightBoard Error: Empty Content]"
   end
 
   ---@class HNCommentData
-  ---@field Author string
-  ---@field AuthorIP string?
-  ---@field AuthorRank string?
-  ---@field AuthorType 'F'|'S'?
-  ---@field Content string
+  ---@field author string
+  ---@field authorIP string?
+  ---@field authorRank string?
+  ---@field authorType 'F'|'S'?
+  ---@field content string
 
   ---@class HNPostData
-  ---@field Author string
-  ---@field AuthorIP string?
-  ---@field AuthorRank string?
-  ---@field AuthorType 'F'|'S'?
-  ---@field Comments HNCommentData[]
-  ---@field Content string
-  ---@field No string
-  ---@field Time string
-  ---@field Title string
-  ---@field Upvotes string
-  ---@field Views string
+  ---@field author string
+  ---@field authorIP string?
+  ---@field authorRank string?
+  ---@field authorType 'F'|'S'?
+  ---@field comments HNCommentData[]
+  ---@field content string
+  ---@field id string
+  ---@field time string
+  ---@field title string
+  ---@field upvotes string
+  ---@field views string
 
   ---@type HNPostData[]
-  local posts = {}
+  local posts = prelude.toon.decode(node.content)
 
-  for _, postBlock in ipairs(prelude.extractBlocks("Post", rawContent)) do
-    ---@class HNPostData
-    local postData = prelude.parseBlock(postBlock, { "Post", "Comment" })
+  for _, post in ipairs(posts) do
+    local author = parseAuthorInfo(post.author or '')
+    post.author = author.name
+    post.authorIP = author.ip
+    post.authorRank = author.rank
+    post.authorType = author.authorType
 
-    local author = parseAuthorInfo(postData.Author or '')
-    postData.Author = author.name
-    postData.AuthorIP = author.ip
-    postData.AuthorRank = author.rank
-    postData.AuthorType = author.type
-    postData.Comments = {}
-
-    for _, commentBlock in ipairs(prelude.extractBlocks("Comment", postBlock)) do
-      ---@type HNCommentData
-      local commentData = prelude.parseBlock(commentBlock)
-      commentData.Author = commentData.Author or "익명"
-
-      local commentAuthor = parseAuthorInfo(commentData.Author)
-      commentData.Author = commentAuthor.name
-      commentData.AuthorIP = commentAuthor.ip
-      commentData.AuthorRank = commentAuthor.rank
-      commentData.AuthorType = commentAuthor.type
-
-      if commentData.Author or commentData.Content then
-        table.insert(postData.Comments, commentData)
-      end
+    for _, comment in ipairs(post.comments or {}) do
+      local commentAuthor = parseAuthorInfo(comment.author or '익명')
+      comment.author = commentAuthor.name
+      comment.authorIP = commentAuthor.ip
+      comment.authorRank = commentAuthor.rank
+      comment.authorType = commentAuthor.authorType
     end
-
-    table.insert(posts, postData)
   end
 
   local post_es = {}
@@ -134,49 +124,43 @@ local function render(block)
   if #posts > 0 then
     for _, post in ipairs(posts) do
       local comment_es = {}
-      for _, comment in ipairs(post.Comments) do
+      for _, comment in ipairs(post.comments or {}) do
         local comment_e = h.li['lb-hn-comment-item'] {
           h.span['lb-hn-comment-author'] {
             assembleAuthorDisplay(comment),
           },
-          comment.Content or "(내용 없음)"
+          comment.content or "(내용 없음)"
         }
 
         table.insert(comment_es, comment_e)
       end
 
-      local idPrefix = math.random()
-
-      table.insert(post_es, h.div['lb-hn-post-item'] {
-        h.input['lb-hn-post-toggle'] {
-          id = idPrefix .. post.No,
-          type = "checkbox",
-        },
-        h.div['lb-hn-post-row'] {
+      table.insert(post_es, h.details['lb-hn-post-item'] {
+        name = 'lb-hn-post',
+        h.summary['lb-hn-post-row'] {
           h.span['lb-hn-col-num lb-hn-text-sm lb-hn-text-muted'] {
-            post.No
+            post.id
           },
-          h.label['lb-hn-col-title lb-hn-post-title-label'] {
-            htmlFor = idPrefix .. post.No,
-            post.Title or "(제목 없음)"
+          h.span['lb-hn-col-title lb-hn-post-title-label'] {
+            post.title or "(제목 없음)"
           },
           h.span['lb-hn-col-writer lb-hn-text-sm'] {
             assembleAuthorDisplay(post)
           },
           h.span['lb-hn-col-date lb-hn-text-sm lb-hn-text-muted'] {
-            post.Time or "-"
+            post.time or "-"
           },
           h.span['lb-hn-col-view lb-hn-text-sm lb-hn-text-muted'] {
-            post.Views or "-"
+            post.views or "-"
           },
           h.span['lb-hn-col-rank lb-hn-text-sm lb-hn-text-muted'] {
-            post.Upvotes or "-"
+            post.upvotes or "-"
           }
         },
         h.div['lb-hn-content'] {
           h.div['lb-hn-view-header'] {
             h.div['lb-hn-view-title'] {
-              post.Title or "(제목 없음)"
+              post.title or "(제목 없음)"
             },
             h.div['lb-hn-view-info lb-hn-text-sm lb-hn-text-muted'] {
               h.span['lb-hn-author'] {
@@ -184,27 +168,27 @@ local function render(block)
               },
               h.span['lb-hn-separator'] "|",
               h.span {
-                "등록일: " .. (post.Time or "-")
+                "등록일: " .. (post.time or "-")
               },
               h.span['lb-hn-separator'] "|",
               h.span {
-                "조회: " .. (post.Views or "-")
+                "조회: " .. (post.views or "-")
               },
               h.span['lb-hn-separator'] "|",
               h.span {
-                "추천: " .. (post.Upvotes or "-")
+                "추천: " .. (post.upvotes or "-")
               }
             }
           },
           h.div['lb-hn-full-content'] {
-            post.Content or "(내용 없음)"
+            post.content or "(내용 없음)"
           },
           #comment_es > 0 and h.div['lb-hn-comments'] {
             h.ul['lb-hn-comment-list'] {
               comment_es
             },
             h.button['lb-hn-add-comment'] {
-              risu_btn = "lb-interaction__lightboard-hn__AddComment/Title:" .. post.Title,
+              risu_btn = "lb-interaction__lb-hn__AddComment/Title:" .. post.title,
               type = "button",
               "댓글 달기"
             },
@@ -221,9 +205,9 @@ local function render(block)
 
   local id = 'lb-hn-' .. math.random()
 
-  local boardTitle = block.attributes.name or "헌터넷 게시판"
+  local boardTitle = node.attributes.name or "헌터넷 게시판"
   local html = h.div['lb-module-root'] {
-    data_id = 'lightboard-hn',
+    data_id = 'lb-hn',
     h.button['lb-collapsible'] {
       popovertarget = id,
       type = 'button',
@@ -253,12 +237,13 @@ local function render(block)
         },
         h.div['lb-hn-options'] {
           h.select['lb-hn-text-sm lb-hn-text-light'] {
+            disabled = true,
             h.option { value = '30', '30개' },
             h.option { value = '50', '50개' },
             h.option { value = '100', '100개' }
           },
           h.button['lb-hn-write-button'] {
-            risu_btn = "lb-interaction__lightboard-hn__AddPost",
+            risu_btn = "lb-interaction__lb-hn__AddPost",
             type = "button",
             h.i '📝',
             ' 글쓰기'
@@ -289,7 +274,7 @@ local function render(block)
       }
     },
     h.button['lb-reroll'] {
-      risu_btn = 'lb-reroll__lightboard-hn',
+      risu_btn = 'lb-reroll__lb-hn',
       type = 'button',
       h.lb_reroll_icon { closed = true }
     },
@@ -299,42 +284,37 @@ local function render(block)
 end
 
 local function main(data)
-  if not data or data == "" then
-    return ""
+  if not data or data == '' then
+    return ''
   end
 
-  local output = ""
-  local lastIndex = 1
-
-  local extractionSuccess, extractionResult = pcall(prelude.extractNodes, 'lightboard-hn', data)
+  local extractionSuccess, extractionResult = pcall(prelude.queryNodes, 'lb-hn', data)
   if not extractionSuccess then
     print("[LightBoard] HN extraction failed:", tostring(extractionResult))
     return data
   end
 
-  if extractionResult and #extractionResult > 0 then
-    for i, match in ipairs(extractionResult) do
-      if match.rangeStart > lastIndex then
-        output = output .. data:sub(lastIndex, match.rangeStart - 1)
-      end
-      local processSuccess, processResult = pcall(render, match)
-      if processSuccess then
-        output = output .. processResult
-      else
-        print("[LightBoard] HN parsing failed in block " .. i .. ":", tostring(processResult))
-        output = output .. "\n\n<!-- LightBoard Block Error -->"
-      end
-      lastIndex = match.rangeEnd + 1
+  local lastResult = extractionResult and extractionResult[#extractionResult] or nil
+  if not lastResult then
+    return data
+  end
+
+  local output = ''
+  local lastIndex = 1
+
+  for i = 1, #extractionResult do
+    local match = extractionResult[i]
+    if match.rangeStart > lastIndex then
+      output = output .. data:sub(lastIndex, match.rangeStart - 1)
     end
-  else
-    lastIndex = 1
+    if i == #extractionResult then
+      -- render lastResult in its original position
+      output = output .. render(lastResult)
+    end
+    lastIndex = match.rangeEnd + 1
   end
 
-  if lastIndex <= #data then
-    output = output .. data:sub(lastIndex)
-  end
-
-  return output
+  return output .. data:sub(lastIndex)
 end
 
 listenEdit(
@@ -344,7 +324,7 @@ listenEdit(
 
     if meta and meta.index ~= nil then
       local position = meta.index - getChatLength(triggerId)
-      if position < -5 then
+      if position < -9 then
         return data
       end
     end
@@ -354,7 +334,7 @@ listenEdit(
       return result
     else
       print("[LightBoard] HN display failed:", tostring(result))
-      return data
+      return data .. '<lb-lazy id="lb-hn">오류: ' .. result .. '</lb-lazy>'
     end
   end
 )

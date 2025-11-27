@@ -1,0 +1,218 @@
+{{#when::{{? {{chat_index}} > {{? {{lastmessageid}}-1}}}}}}
+<details class="astarot-panel" open>
+  <summary class="astarot-summary">
+    <img class="astarot-cover" src="{{raw::$1}}" />
+    <div class="astarot-title-overlay">
+      /설정 or /config ▼
+    </div>
+  </summary>
+  <div class="astarot-content-wrapper">
+    <div class="astarot-controls-section">
+      <div>
+        <div class="astarot-label">Language</div>
+        <div class="astarot-lang-group">
+          <button class="astarot-btn" {{#when::{{getvar::astarot-lang}}::is::0}}data-active{{/when}} {{#when::not::{{getvar::lang}}::is::0}}risu-trigger="toggleLang"{{/when}}>한국어</button>
+          <button class="astarot-btn" {{#when::{{getvar::astarot-lang}}::is::1}}data-active{{/when}} {{#when::not::{{getvar::lang}}::is::1}}risu-trigger="toggleLang"{{/when}}>English</button>
+        </div>
+      </div>
+      <div class="astarot-misc-groups">
+        <div>
+          <div class="astarot-label">Contents</div>
+          <div class="astarot-misc-group">
+            <button class="astarot-btn" {{#when::{{getvar::astarot-reading}}::is::1}}data-active{{/when}} risu-trigger="toggleReading">타로 리딩</button>
+            <button class="astarot-btn" {{#when::{{getvar::astarot-cards}}::is::1}}data-active{{/when}} risu-trigger="toggleCards">카드 외형 로어북</button>
+            <button class="astarot-btn" {{#when::{{getvar::astarot-stats}}::is::1}}data-active{{/when}} risu-trigger="toggleStats">상태창</button>
+            <button class="astarot-btn" {{#when::{{getvar::astarot-realtime}}::is::1}}data-active{{/when}} risu-trigger="toggleRealTime">현실 날짜/시간 전송</button>
+          </div>
+        </div>
+        <div>
+          <div class="astarot-label">Images</div>
+          <div class="astarot-misc-group">
+            <button class="astarot-btn" {{#when::{{getvar::astarot-asset}}::is::1}}data-active{{/when}} risu-trigger="toggleImage">이미지 표시</button>
+            <button class="astarot-btn" {{#when::{{getvar::astarot-hover}}::is::1}}data-active{{/when}} {{#when::{{getvar::astarot-asset}}::is::0}}disabled{{/when}} risu-trigger="toggleHover">호버 확대</button>
+            <button class="astarot-btn" {{#when::{{getvar::astarot-infdist}}::is::1}}data-active{{/when}} {{#when::{{getvar::astarot-asset}}::is::0}}disabled{{/when}} risu-trigger="toggleInfdist">무제한 렌더링</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</details>
+{{#when {{greater::{{chat_index}}::0}}}}
+<button class="astarot-button" risu-trigger="closeConf" style="margin-top:8px">
+  설정 닫기
+</button>
+{{/when}}
+{{/when}}
+
+<style>
+  .astarot-panel {
+    --primary-gold: #cbb69b;
+    --text-color: #f0e6d2;
+    --panel-bg: #1a1625;
+    --btn-text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+
+    background: var(--panel-bg);
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7),
+                0 0 0 1px #3a324b inset;
+    display: flex;
+    flex-direction: column;
+    margin: auto;
+    max-width: 600px;
+    overflow: hidden;
+    position: relative;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+
+  .astarot-summary {
+    background: #000;
+    cursor: pointer;
+    padding: 0;
+    list-style: none;
+    margin: 0;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .astarot-cover {
+    aspect-ratio: 3/2;
+    background: #000;
+    display: block;
+    object-fit: contain;
+    object-position: center;
+    transition: transform 0.3s ease;
+    width: 100%;
+  }
+
+  .astarot-title-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    background: linear-gradient(to top, rgba(15, 12, 21, 0.95), transparent);
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: 20px;
+    z-index: 3;
+    color: var(--primary-gold);
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: 3px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+
+  .astarot-panel[open] .astarot-summary::after {
+      transform: rotate(180deg);
+  }
+
+  .astarot-content-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+      position: relative;
+  }
+
+  .astarot-content-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--primary-gold), transparent);
+    opacity: 0.7;
+  }
+
+  .astarot-controls-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .astarot-label {
+    font-size: 0.8rem;
+    color: #8a8199;
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .astarot-btn {
+    background: transparent;
+    color: #7e786d;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 8px 24px;
+    cursor: pointer;
+    text-shadow: var(--btn-text-shadow);
+    transition: transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    user-select: none;
+  }
+
+  .astarot-btn::before {
+    content: '✦';
+    margin-right: 1ch;
+    opacity: 0;
+  }
+  .astarot-btn::after {
+    content: '✦';
+    color: #7e786d;
+    font-size: 0.8rem;
+    margin-left: 1ch;
+    opacity: 0.6;
+  }
+
+  .astarot-btn:not(:disabled):hover {
+    filter: brightness(1.2);
+    color: #fff;
+  }
+
+  .astarot-btn[data-active] {
+    color: var(--primary-gold);
+    filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.3));
+  }
+  .astarot-btn[data-active]:not(:disabled)::after {
+    color: var(--primary-gold);
+    opacity: 1;
+  }
+
+  .astarot-btn:disabled {
+    cursor: not-allowed;
+    filter: grayscale(1) opacity(0.4);
+    color: #555;
+  }
+
+  .astarot-lang-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .astarot-misc-groups {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .astarot-misc-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  @media (max-width: 600px) {
+    .astarot-misc-groups {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

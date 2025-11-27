@@ -1,86 +1,127 @@
 # Guidance Detail
 
-Objective defines ultimate destination, phase defines current milestone, episodes break down phase into story beats.
+Objective is the destination. Phase is the milestone. Episodes are story beats.
 
-When generating fields, respect this user specified genre/direction (prioritize over everything):
-{{#when {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-stage.mood}} }} }} > 0 }} }}
-"{{getglobalvar::toggle_lightboard-stage.mood}}"
+Respect user genre/direction:
+{{#when {{? {{length::{{trim::{{getglobalvar::toggle_lb-stage.mood}} }} }} > 0 }} }}
+"{{getglobalvar::toggle_lb-stage.mood}}"
 {{/when}}
 
 Genre Tags:
 
-- Likes: {{getglobalvar::toggle_lightboard-stage.tags-likes}}
-- Dislikes: #Angst #Mary Sue {{getglobalvar::toggle_lightboard-stage.tags-dislikes}}
+- Likes: {{getglobalvar::toggle_lb-stage.tags-likes}}
+- Dislikes: #Angst #Mary Sue {{getglobalvar::toggle_lb-stage.tags-dislikes}}
 
 ## Objective
 
-Defines story's ultimate destination across entire journey. The overarching endpoint that encompasses multiple phases. Immutable.
-
-Must describe final transformation, revelation, or resolution the story builds toward. Focus on ultimate scope, not prescribed conclusions.
-
-If story diverged absolutely unrecoverably away from objective intent, objective is invalidated. If there is a chance to recover, the objective should continue.
+Immutable ultimate endpoint encompassing multiple phases. Must be a final transformation or resolution, not specific conclusions.
 
 Good examples:
 
-- A character confronts their hidden past and determines where their true loyalty lies
-  - Scope: past revelation + loyalty decision (ultimate endpoints)
-- A mother and son's ordeal transforms their relationship as they survive a deadly siege
-  - Scope: survival + relationship transformation
+- A character confronts their hidden past and determines where their true loyalty lies (ultimate endpoint)
+- A mother and son's ordeal transforms their relationship as they survive a deadly siege (survival + relationship transformation)
+
+Invalidation: If story diverged absolutely unrecoverably away from intent, invalidate. If there is a chance to recover, continue. Take extra care to determine if truly unrecoverable. Even if narrative skipped ahead in time, it may still be valid if core transformation/realization is achievable.
 
 ## Phase
 
-Narrative milestone currently active. Represents significant story beat or turning point in {{user}}'s perspective toward the objective.
+Current story milestone. Represents significant story beat or turning point in {{user}}'s perspective toward the objective.
 
-Each new "main" phase shall follow five-act structure: Introduction, Rise, Climax, Falling, Conclusion. Main phase should have {{dictelement::{"0":"5-7","1":"7-10","2":"10-14"}::{{getglobalvar::toggle_lightboard-stage.length}}}} episodes with all five-act structures.
+Three phase types: main, cooldown, epilogue.
 
-If story diverged absolutely unrecoverably away from phase intent, phase is invalidated. If there is a chance to recover, the phase should continue.
+- Main phase: 5-act (Introduction, Rise, Climax, Falling, Conclusion), {{dictelement::{"0":"5-7","1":"7-10","2":"10-14"}::{{getglobalvar::toggle_lb-stage.length}}}} episodes.
+- Cooldown phase: Enter if main phase ended but tension remains high. Starts in Climax or Falling, a few episodes only for rapid intensity resolution.
+- Epilogue phase: Enter after main phases with tension resolved, or cooldown phases. No Climax. Low intensity, brighter mood, fewer episodes.
 
-Take extra care to determine if phase is absolutely unrecoverable. Even if narrative skipped ahead in time, phase and its episodes may still be valid if core transformation/realization is achievable.
+Tension should build up toward climax and resolve by conclusion.
+
+Avoid consecutive main phases. Provide breathing room for the reader.
+
+Invalidation: Follow the same rules as the objective invalidation.
 
 When closed or invalidated, generate anew with fresh episodes.
-After each main/cooldown phase closure/invalidation, low intensity -> MUST low intensity, epilogue phase for loosening; no climax, skip structures. High intensity even in conclusion -> MUST cooldown phase. Begin in climax or fall, prepare only a few episodes aimed for intensity resolvement.
 
-Closed main phases (NOT invalidated nor epilogues) should contribute to objective completion percentage. Take caution to pace the narrative; avoid a phase that will significantly advance percentage alone, or single-handedly complete the objective.
+Closed MAIN phases (NOT invalidated, epilogue, or cooldown. NOT each epilogue) contribute to objective completion percentage. Since objective is the ultimate goal, contribution should be small. No phase should significantly advance percentage alone, or single-handedly complete the objective.
 
 Do not skip ahead even if phase core looks completed. Climax is not everything; fall and conclusion also important. Only close after going through all episodes.
 
-Phase should be abstract enough to allow multiple paths. Focus on WHAT transformation/realization occurs, not HOW it unfolds.
+Must be open to allow multiple paths. Focus on WHAT transformation/realization occurs, not HOW it unfolds.
 
 Good examples:
 
-- Character confronts a truth about themselves they've been avoiding
-  - Milestone: confrontation + realization (not what they decide)
-- An external threat forces dormant relationships to surface
-  - Milestone: catalyst + revelation (outcome open)
-- Past and present identities collide, demanding reconciliation
-  - Milestone: collision point (resolution path undefined)
+- An external threat forces dormant relationships to surface (outcome open)
+- Past and present identities collide, demanding reconciliation (resolution path undefined)
+
+### Completion Marker
+
+If main model output `<lb-stage-marker>Phase Complete</lb-stage-marker>` (or Objective Complete):
+
+- Evaluate if phase/objective truly complete
+- If yes: Close phase/objective and generate new
+- If no: Keep current, add comment "Completion premature. Continue. [Reason]"
 
 ## Episode
 
-Story beats in {{user}}'s perspective. Episodes break down the current phase into actionable story checkpoints. Episodes should guide the narrative toward completing the current phase.
+Actionable story beats. Should guide the narrative toward completing the current phase.
 
-Episodes should be abstract enough to allow multiple paths. Do not prescribe specific actions as it must be user's choice.
+Episode rules:
 
-Episodes must be done in order. Previous episodes must be done or skipped first. Do not arbitrarily jump ahead.
+- Be abstract, allow multiple paths. Do not prescribe specific actions; must be user's choice.
+- May close multiple at once if narrative momentum supports.
+- May skip/replace individually if totally obsolete. Otherwise, keep as-is.
+- Mark done in order only. Do not mark future episodes done without all previous ones done as well. If done too early, mark them as skipped.
 
-Multiple episodes can be closed at once if narrative momentum supports. Individual episodes may be skipped or regenerated if story flow renders them obsolete.
+If diverged but phase still active, do not add a new one. Increase divergence level instead.
 
 Climax doesn't have to involve external or visible conflicts. Internal character revelations or subtle relationship shifts can serve as climactic episodes.
 
 When regenerating due to phase invalidation, first episode must be ongoing, others pending.
 
-# Current State
+## Divergence
 
-{{#when::{{getvar::lightboard-stage-raw}}::isnot::null}}
-{{getvar::lightboard-stage-raw}}
-{{:else}}
-None. Generate new set.
+Measure of drift. Contributions:
+
+- Rising tension in Fall/Conclusion episodes or Cooldown phase.
+- Recoverable narrative detours away from objective/phase intent.
+
+## Comment
+
+Text for the main model. Start with episode (NOT PHASE OR OBJECTIVE) turn count.
+
+{{#when::{{getglobalvar::toggle_lb-stage.intervention}}::is::1}}
+If tension too high or low AT THE END of the log, provide tension and pace management direction with only pacing instruction. Restricted to tension difference with expectation and direction. If tension meets expectation or episode just started (turn 1), no instruction.
+
+Examples:
+
+- Tension too low in rise stage. Build up.
+- Conclusion nearing but tension high. Resolve fast.
+
+Anything more detailed is violation of code.
+
 {{/when}}
+
+Only when divergence HIGH: Add restoration hint (e.g. Resume episode goal).
+
+Keep it abstract and structural only. To finalize:
+
+- Episode turn count
+- If divergence high: "Resume episode goal", "Return to phase intent", etc.{{#if_pure {{? {{getglobalvar::toggle_lb-stage.intervention}}=1}}}}
+- Pacing instruction: Difference and direction. "Tension too low in rise stage. Build up."{{/if_pure}}
+
+NEVER include:
+
+- Character names
+- Specific actions or events
+- Scene details
+- Plot descriptions
+- Relationship dynamics
+
+ADD NOTHING ELSE OR YOU WILL BE PUNISHED.
 
 # Example
 
 ```
-<lightboard-stage>
+<lb-stage>
 objective:
   title: Renewal of the Heart
   content: A burnt-out pastry chef rediscovers what they truly value in life and reconciles with their past
@@ -95,25 +136,26 @@ episodes[2|]{content|stage|state|title}:
 divergence: medium
 comment: Ongoing E1 for 2 turns.
 history: Protagonist discovered inherited property.
-</lightboard-stage>
+</lb-stage>
 ```
 
-- Open `<lightboard-stage>`.
+- Open `<lb-stage>`.
 - Output in TOON format (2-space indent, array show length, separate fields by `|`).
 - title: short novel-like title.
-- content: main text body.
-- completion: percentage of objective completion. 100% means objective closes.
+- completion: percentage of objective completion. 100% means objective closure.
 - phase stage: enum `main, epilogue, cooldown`.
 - episode stage: enum `introduction, rise, climax, fall, conclusion`.
-- episode state: enum `pending, ongoing, done, skipped`. Only one episode can be ongoing.
-- divergence: story divergence level. enum `high, medium, low`.
-- comment: text for main model. Must include episode turn count (NOT objective/phase status - ONLY episode turn count). Divergence HIGH -> add vague minimal direction (without specifics) that can restore flow. Divergence LOW/MEDIUM -> NO DIRECTION! Both: Do not describe current scene.
-- history: your private notes for tracking completed phases ONLY (NOT CURRENT). Keep only minimal key points of each phase without their titles.
-- Close `</lightboard-stage>`.
+- episode state: enum `pending, ongoing, done, skipped`. Only one ongoing.
+- divergence: enum `high, medium, low`.
+- history: your private notes for tracking COMPLETED phases (NOT CURRENT). After phase completes, write down what was achieved here. Only minimal key points without their titles.
+- Close `</lb-stage>`.
 
 STRICTLY ADHERE TO THE FORMAT. DO NOT ALTER ENUMS IN ARRAY FORMAT.
 
 Episode order matters. Keep them in intended order.
 
-Content/comment/history: Brief, laconic. No line breaks within fields.
-Comment/history: If empty, use `none`.
+All fields: Minimal, laconic, only key points. No line breaks within fields.
+
+Comment/history: Not visible to user, output in English. If empty, use `none`
+
+Ignore previous `<lb-stage>` nodes except the most recent one.
