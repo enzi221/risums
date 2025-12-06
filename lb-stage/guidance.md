@@ -1,7 +1,7 @@
 @@depth 0
 
-{{#when {{? {{getglobalvar::toggle_lightboard-stage.mode}} > 0 }} }}
-{{#when::{{getvar::lightboard-stage-objective}}::isnot::null}}
+{{#when {{? {{getglobalvar::toggle_lb-stage.mode}} > 0 }} }}
+{{#when::{{getvar::lb-stage-objective}}::isnot::null}}
 
 <story-guidance>
 
@@ -21,21 +21,21 @@ Objective and phase remains constant until achieved or totally invalidated.
 
 #### Objective
 
-{{dictelement::{{getvar::lightboard-stage-objective}}::content}}
+{{dictelement::{{getvar::lb-stage-objective}}::content}}
 
 #### Phase
 
-{{dictelement::{{getvar::lightboard-stage-phase}}::content}}
+{{dictelement::{{getvar::lb-stage-phase}}::content}}
 
 #### Episodes
 
-{{#each {{getvar::lightboard-stage-episodes}} episode}}
+{{#each {{getvar::lb-stage-episodes}} episode}}
 [{{dictelement::{{slot::episode}}::stage}}: {{dictelement::{{slot::episode}}::content}} ({{dictelement::{{slot::episode}}::state}})]
 {{/each}}
 
 #### System Comment
 
-{{getvar::lightboard-stage-comment}}
+{{getvar::lb-stage-comment}}
 
 ### Usage
 

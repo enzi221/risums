@@ -8,14 +8,14 @@ Narrative, universe, newspaper all should be simulated as real life. News author
 
 ### Tone and manner
 
-{{#if {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-news.subject}} }} }} > 0 }} }}
-Simulate as if protagonist has subscribed "{{getglobalvar::toggle_lightboard-news.subject}}" subject.
+{{#if {{? {{length::{{trim::{{getglobalvar::toggle_lb-news.subject}} }} }} > 0 }} }}
+Simulate as if protagonist has subscribed "{{getglobalvar::toggle_lb-news.subject}}" subject.
 {{/if}}
 
-{{#if {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-news.mood}} }} }} > 0 }} }}
-The newspaper should feel like "{{getglobalvar::toggle_lightboard-news.mood}}" in tone, manner, and style.
+{{#if {{? {{length::{{trim::{{getglobalvar::toggle_lb-news.mood}} }} }} > 0 }} }}
+The newspaper should feel like "{{getglobalvar::toggle_lb-news.mood}}" in tone, manner, and style.
 {{/if}}
-{{#if {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-news.mood}} }} }} == 0 }} }}
+{{#if {{? {{length::{{trim::{{getglobalvar::toggle_lb-news.mood}} }} }} == 0 }} }}
 Article titles should be catchy, clickbait style, sometimes sensationalist depending on newspaper type.
 {{/if}}
 
@@ -50,7 +50,7 @@ In any case, DO NOT REFLECT current scenes in dedicated advertisements. IT FEELS
 
 Advertisement articles requires less efforts, thus they can reflect recent events if plausible.
 
-{{#if {{? {{getglobalvar::toggle_lightboard-news.privacy}}=1}}}}
+{{#if {{? {{getglobalvar::toggle_lb-news.privacy}}=1}}}}
 
 #### Protagonist/Partners privacy
 

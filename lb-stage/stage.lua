@@ -56,7 +56,7 @@ local function main(data)
     return ""
   end
 
-  local nodes = prelude.extractNodes('lightboard-stage', data)
+  local nodes = prelude.extractNodes('lb-stage', data)
   if #nodes == 0 then
     return data
   end
@@ -105,7 +105,7 @@ local function main(data)
   local playing = phase.title .. (nextEpisode and ' - ' .. nextEpisode.title or '')
 
   local html = h.div['lb-module-root'] {
-    data_id = 'lightboard-stage',
+    data_id = 'lb-stage',
     h.button['lb-stage-entry'] {
       popovertarget = id,
       type = 'button',
@@ -122,7 +122,7 @@ local function main(data)
       h.div {
         style = 'float: right;',
         h.button['lb-reroll'] {
-          risu_btn = "lb-interaction__lightboard-stage__Regenerate",
+          risu_btn = "lb-interaction__lb-stage__Regenerate",
           type = 'button',
           h.lb_reroll_icon { closed = true }
         },
@@ -196,20 +196,20 @@ listenEdit(
 onStart = async(function(tid)
   setTriggerId(tid)
 
-  local currentKey = getChatVar(tid, 'lightboard-stage-key')
+  local currentKey = getChatVar(tid, 'lb-stage-key')
 
   if not currentKey or currentKey == '' or currentKey == 'null' then
-    setChatVar(tid, 'lightboard-stage-key', '')
-    setChatVar(tid, 'lightboard-stage-raw', '')
-    setChatVar(tid, 'lightboard-stage-objective', '')
-    setChatVar(tid, 'lightboard-stage-phase', '')
-    setChatVar(tid, 'lightboard-stage-episodes', '')
-    setChatVar(tid, 'lightboard-stage-comment', '')
-    setChatVar(tid, 'lightboard-stage-divergence', '')
+    setChatVar(tid, 'lb-stage-key', '')
+    setChatVar(tid, 'lb-stage-raw', '')
+    setChatVar(tid, 'lb-stage-objective', '')
+    setChatVar(tid, 'lb-stage-phase', '')
+    setChatVar(tid, 'lb-stage-episodes', '')
+    setChatVar(tid, 'lb-stage-comment', '')
+    setChatVar(tid, 'lb-stage-divergence', '')
     return
   end
 
-  -- Find the nearest chat with <lightboard-stage-x>
+  -- Find the nearest chat with <lb-stage-x>
   local fullChat = getFullChat(tid)
   local stageChat = nil
   local searchStart = #fullChat
@@ -222,20 +222,20 @@ onStart = async(function(tid)
   end
 
   if not stageChat then
-    setChatVar(tid, 'lightboard-stage-key', '')
-    setChatVar(tid, 'lightboard-stage-raw', '')
-    setChatVar(tid, 'lightboard-stage-objective', '')
-    setChatVar(tid, 'lightboard-stage-phase', '')
-    setChatVar(tid, 'lightboard-stage-episodes', '')
-    setChatVar(tid, 'lightboard-stage-comment', '')
-    setChatVar(tid, 'lightboard-stage-divergence', '')
+    setChatVar(tid, 'lb-stage-key', '')
+    setChatVar(tid, 'lb-stage-raw', '')
+    setChatVar(tid, 'lb-stage-objective', '')
+    setChatVar(tid, 'lb-stage-phase', '')
+    setChatVar(tid, 'lb-stage-episodes', '')
+    setChatVar(tid, 'lb-stage-comment', '')
+    setChatVar(tid, 'lb-stage-divergence', '')
 
     stopChat(tid)
     alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")
     return
   end
 
-  local stageNodes = prelude.extractNodes('lightboard-stage', stageChat.data)
+  local stageNodes = prelude.extractNodes('lb-stage', stageChat.data)
   if #stageNodes == 0 then
     return
   end
@@ -256,13 +256,13 @@ onStart = async(function(tid)
     table.insert(deepEncodedEpisodes, json.encode(episode))
   end
 
-  setChatVar(tid, 'lightboard-stage-key', extractedKey)
-  setChatVar(tid, 'lightboard-stage-raw', decrypted)
-  setChatVar(tid, 'lightboard-stage-objective', json.encode(data.objective) or '')
-  setChatVar(tid, 'lightboard-stage-phase', json.encode(data.phase) or '')
-  setChatVar(tid, 'lightboard-stage-episodes', json.encode(deepEncodedEpisodes) or '')
-  setChatVar(tid, 'lightboard-stage-comment', data.comment or '')
-  setChatVar(tid, 'lightboard-stage-divergence', data.divergence or '')
+  setChatVar(tid, 'lb-stage-key', extractedKey)
+  setChatVar(tid, 'lb-stage-raw', decrypted)
+  setChatVar(tid, 'lb-stage-objective', json.encode(data.objective) or '')
+  setChatVar(tid, 'lb-stage-phase', json.encode(data.phase) or '')
+  setChatVar(tid, 'lb-stage-episodes', json.encode(deepEncodedEpisodes) or '')
+  setChatVar(tid, 'lb-stage-comment', data.comment or '')
+  setChatVar(tid, 'lb-stage-divergence', data.divergence or '')
 
   stopChat(tid)
   alertNormal(tid, "[LightBoard] Stage: 리롤 감지. 스테이지를 업데이트했습니다. 메시지를 다시 전송해주세요.")

@@ -776,7 +776,7 @@ end)
 onOutput = async(function(tid)
   setTriggerId(tid)
 
-  if getGlobalVar(tid, "toggle_lightboard.mode") == "0" then
+  if getGlobalVar(tid, "toggle_lightboard.active") == "0" then
     return
   end
 
@@ -794,7 +794,7 @@ end)
 ---@param identifier string module identifier
 ---@param blockID string? for rerolling specific block
 local function reroll(identifier, blockID)
-  local mode = getGlobalVar(triggerId, "toggle_lightboard.mode") or "O"
+  local mode = getGlobalVar(triggerId, "toggle_lightboard.active") or "O"
   if mode == "0" then
     alertError(triggerId, "[LightBoard] 리롤 전에 백엔드를 활성화해주세요.")
     return
@@ -856,7 +856,7 @@ end
 ---@param action string
 ---@param direction string
 local function interact(fullChat, identifier, action, direction)
-  local mode = getGlobalVar(triggerId, "toggle_lightboard.mode") or "O"
+  local mode = getGlobalVar(triggerId, "toggle_lightboard.active") or "O"
   if mode == "0" then
     alertError(triggerId, "[LightBoard] 리롤 전에 백엔드를 활성화해주세요.")
     return
@@ -1013,7 +1013,7 @@ onButtonClick = async(function(tid, code)
 end)
 
 onStart = async(function(tid)
-  local mode = getGlobalVar(tid, "toggle_lightboard.mode") or "0"
+  local mode = getGlobalVar(tid, "toggle_lightboard.active") or "0"
   if mode == "0" then
     return
   end

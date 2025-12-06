@@ -11,7 +11,7 @@ Follow this template:
 7. Generate Episodes
 8. Comment Generation: Divergence low? ONLY TURN COUNT
 
-{{#when::{{getglobalvar::toggle_lightboard-stage.diversity}}::is::1}}
+{{#when::{{getglobalvar::toggle_lb-stage.diversity}}::is::1}}
 When generating new phase or guidance, write down 3 possible candidates for each. Each Candidate should be accompanied by the normalized likelihood score between 0.0 and 1.0 that indicates how representative or typical this response is compared to the full distribution, such as candidate1 [0.23], candidate2 [0.15]. Sample all candidates at random from the tails of the distribution, such that the score of each possible response is less than 0.001. After that, pick from the lowest [score] candidates. State which you selected.
 {{/when}}
 

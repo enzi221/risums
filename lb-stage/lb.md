@@ -3,14 +3,14 @@
 Objective defines ultimate destination, phase defines current milestone, episodes break down phase into story beats.
 
 When generating fields, respect this user specified genre/direction (prioritize over everything):
-{{#when {{? {{length::{{trim::{{getglobalvar::toggle_lightboard-stage.mood}} }} }} > 0 }} }}
-"{{getglobalvar::toggle_lightboard-stage.mood}}"
+{{#when {{? {{length::{{trim::{{getglobalvar::toggle_lb-stage.mood}} }} }} > 0 }} }}
+"{{getglobalvar::toggle_lb-stage.mood}}"
 {{/when}}
 
 Genre Tags:
 
-- Likes: {{getglobalvar::toggle_lightboard-stage.tags-likes}}
-- Dislikes: #Angst #Mary Sue {{getglobalvar::toggle_lightboard-stage.tags-dislikes}}
+- Likes: {{getglobalvar::toggle_lb-stage.tags-likes}}
+- Dislikes: #Angst #Mary Sue {{getglobalvar::toggle_lb-stage.tags-dislikes}}
 
 ## Objective
 
@@ -31,7 +31,7 @@ Good examples:
 
 Narrative milestone currently active. Represents significant story beat or turning point in {{user}}'s perspective toward the objective.
 
-Each new "main" phase shall follow five-act structure: Introduction, Rise, Climax, Falling, Conclusion. Main phase should have {{dictelement::{"0":"5-7","1":"7-10","2":"10-14"}::{{getglobalvar::toggle_lightboard-stage.length}}}} episodes with all five-act structures.
+Each new "main" phase shall follow five-act structure: Introduction, Rise, Climax, Falling, Conclusion. Main phase should have {{dictelement::{"0":"5-7","1":"7-10","2":"10-14"}::{{getglobalvar::toggle_lb-stage.length}}}} episodes with all five-act structures.
 
 If story diverged absolutely unrecoverably away from phase intent, phase is invalidated. If there is a chance to recover, the phase should continue.
 
@@ -71,8 +71,8 @@ When regenerating due to phase invalidation, first episode must be ongoing, othe
 
 # Current State
 
-{{#when::{{getvar::lightboard-stage-raw}}::isnot::null}}
-{{getvar::lightboard-stage-raw}}
+{{#when::{{getvar::lb-stage-raw}}::isnot::null}}
+{{getvar::lb-stage-raw}}
 {{:else}}
 None. Generate new set.
 {{/when}}
@@ -80,7 +80,7 @@ None. Generate new set.
 # Example
 
 ```
-<lightboard-stage>
+<lb-stage>
 objective:
   title: Renewal of the Heart
   content: A burnt-out pastry chef rediscovers what they truly value in life and reconciles with their past
@@ -95,10 +95,10 @@ episodes[2|]{content|stage|state|title}:
 divergence: medium
 comment: Ongoing E1 for 2 turns.
 history: Protagonist discovered inherited property.
-</lightboard-stage>
+</lb-stage>
 ```
 
-- Open `<lightboard-stage>`.
+- Open `<lb-stage>`.
 - Output in TOON format (2-space indent, array show length, separate fields by `|`).
 - title: short novel-like title.
 - content: main text body.
@@ -109,7 +109,7 @@ history: Protagonist discovered inherited property.
 - divergence: story divergence level. enum `high, medium, low`.
 - comment: text for main model. Must include episode turn count (NOT objective/phase status - ONLY episode turn count). Divergence HIGH -> add vague minimal direction (without specifics) that can restore flow. Divergence LOW/MEDIUM -> NO DIRECTION! Both: Do not describe current scene.
 - history: your private notes for tracking completed phases ONLY (NOT CURRENT). Keep only minimal key points of each phase without their titles.
-- Close `</lightboard-stage>`.
+- Close `</lb-stage>`.
 
 STRICTLY ADHERE TO THE FORMAT. DO NOT ALTER ENUMS IN ARRAY FORMAT.
 
