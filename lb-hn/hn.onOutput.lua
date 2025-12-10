@@ -18,11 +18,19 @@ end
 function onOutput(triggerId, output)
   setTriggerId(triggerId)
 
+  if not string.find(output, '<lb%-hn') then
+    return nil
+  end
+
   if not string.find(output, "</lb%-hn>") then
     output = output .. '\n</lb-hn>'
   end
 
-  return prelude.removeAllNodes(output, { 'lb-hn', 'lb-process' })
+  local results = {}
+  for _, node in ipairs(prelude.queryNodes('lb-hn', output)) do
+    table.insert(results, output:sub(node.rangeStart, node.rangeEnd))
+  end
+  return table.concat(results, '\n\n')
 end
 
 return onOutput

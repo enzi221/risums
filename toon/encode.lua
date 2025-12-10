@@ -281,3 +281,7 @@ if _ENV.prelude.toon == nil then
 end
 
 _ENV.prelude.toon.encode = encode
+
+return {
+  encode = encode
+}

@@ -1,6 +1,6 @@
 --- @meta
 
---- @param type 'editDisplay'|'editOutput'|'editInput'
+--- @param type 'editDisplay'|'editOutput'|'editInput'|'editRequest'
 --- @param callback fun(triggerId: string, data: string, meta: { index: number }): string
 --- @return nil
 function listenEdit(type, callback) end
@@ -41,6 +41,10 @@ function getState(triggerId, varName) end
 --- @param varName string
 --- @return string
 function getChatVar(triggerId, varName) end
+
+--- @param triggerId string
+--- @param index number
+function reloadChat(triggerId, index) end
 
 --- @param triggerId string
 --- @param varName string

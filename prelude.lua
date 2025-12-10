@@ -18,6 +18,8 @@ local function setTriggerId(tid)
 end
 ]]
 
+local t_insert = table.insert
+
 ---@param triggerId string
 ---@param moduleName string
 ---@return any
@@ -39,24 +41,25 @@ local function trim(str)
   return str:match("^%s*(.-)%s*$") or ""
 end
 
+local ENTITIES = {
+  ["&"] = "&amp;",
+  ["<"] = "&lt;",
+  [">"] = "&gt;",
+  ['"'] = "&#34;",
+  ["“"] = "&#34;",
+  ["”"] = "&#34;",
+  ["'"] = "&#39;",
+  ["‘"] = "&#39;",
+  ["’"] = "&#39;",
+  ["\\n"] = "<br>"
+}
+
 ---@param str string
 ---@return string
 local function escEntities(str)
-  if not str then
-    return ""
-  end
-
-  str = str:gsub("&", "&amp;")
-      :gsub("<", "&lt;")
-      :gsub(">", "&gt;")
-      :gsub("\\n", "<br>")
-      -- Can't use [...] due to Lua's flaw with multibyte characters
-      :gsub('"', "&#34;")
-      :gsub("“", "&#34;")
-      :gsub("”", "&#34;")
-      :gsub("'", "&#39;")
-      :gsub("‘", "&#39;")
-      :gsub("’", "&#39;")
+  if not str then return "" end
+  str = (str:gsub("[&<>\"“ ”'‘’]", ENTITIES))
+  str = str:gsub("\\n", ENTITIES["\\n"]) or str
   return str
 end
 
@@ -92,60 +95,72 @@ local function queryNodes(tagNameRaw, text)
     local tagEnd = text:find(">", startIdx)
     if not tagEnd then
       i = startIdx + 1
-      goto continue
-    end
+    else
+      -- Extract all attributes from the opening tag
+      local openTagContent = text:sub(
+        startIdx + #("<" .. tagNameRaw),
+        tagEnd - 1
+      )
+      local attrs = {}
 
-    -- Extract all attributes from the opening tag
-    local openTagContent = text:sub(
-      startIdx + #("<" .. tagNameRaw),
-      tagEnd - 1
-    )
-    local attrs = {}
+      -- quoted attributes: key="val" or key='val'
+      for key, _, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*(['\"])(.-)%2") do
+        attrs[key] = val
+      end
 
-    -- quoted attributes: key="val" or key='val'
-    for key, _, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*(['\"])(.-)%2") do
-      attrs[key] = val
-    end
+      -- unquoted attributes: key=val
+      for key, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*([^%s\"'>]+)") do
+        if not attrs[key] then attrs[key] = val end
+      end
 
-    -- unquoted attributes: key=val
-    for key, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*([^%s\"'>]+)") do
-      if not attrs[key] then attrs[key] = val end
-    end
+      -- boolean attributes: key (without value)
+      -- First, remove all already parsed attributes to avoid conflicts
+      local tempContent = openTagContent
+      -- Remove quoted attributes
+      tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*(['\"])(.-)%2", "")
+      -- Remove unquoted attributes
+      tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*([^%s\"'>]+)", "")
+      -- Now find standalone attribute names
+      for key in tempContent:gmatch("([%w:_-]+)") do
+        if key and key ~= "" and not attrs[key] then
+          attrs[key] = "true"
+        end
+      end
 
-    -- boolean attributes: key (without value)
-    -- First, remove all already parsed attributes to avoid conflicts
-    local tempContent = openTagContent
-    -- Remove quoted attributes
-    tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*(['\"])(.-)%2", "")
-    -- Remove unquoted attributes
-    tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*([^%s\"'>]+)", "")
-    -- Now find standalone attribute names
-    for key in tempContent:gmatch("([%w:_-]+)") do
-      if key and key ~= "" and not attrs[key] then
-        attrs[key] = "true"
+      -- Check if self-closing
+      local isSelfClosing = openTagContent:match("/%s*$")
+
+      if isSelfClosing then
+        -- Self-closing tag: no content, rangeEnd is the closing >
+        t_insert(results, {
+          attributes = attrs,
+          content    = "",
+          rangeEnd   = tagEnd,
+          rangeStart = startIdx,
+        })
+        i = tagEnd + 1
+      else
+        -- Find closing tag
+        local closeStart, _ = text:find("</" .. tagName .. ">", tagEnd)
+        if not closeStart then
+          i = tagEnd + 1
+        else
+          local closeEnd = closeStart + #("</" .. tagNameRaw .. ">") - 1
+
+          -- Extract inner content
+          local contentOnly = text:sub(tagEnd + 1, closeStart - 1)
+
+          t_insert(results, {
+            attributes = attrs,
+            content    = contentOnly,
+            rangeEnd   = closeEnd,
+            rangeStart = startIdx,
+          })
+
+          i = closeEnd + 1
+        end
       end
     end
-
-    -- Find closing tag
-    local closeStart, _ = text:find("</" .. tagName .. ">", tagEnd)
-    if not closeStart then
-      i = tagEnd + 1
-      goto continue
-    end
-    local closeEnd = closeStart + #("</" .. tagNameRaw .. ">") - 1
-
-    -- Extract inner content
-    local contentOnly = text:sub(tagEnd + 1, closeStart - 1)
-
-    table.insert(results, {
-      attributes = attrs,
-      content    = contentOnly,
-      rangeEnd   = closeEnd,
-      rangeStart = startIdx,
-    })
-
-    i = closeEnd + 1
-    ::continue::
   end
 
   return results
@@ -176,32 +191,35 @@ local function removeAllNodes(text, tagsToKeep)
     local tagEnd = text:find(">", tagStart)
     if not tagEnd then
       position = tagStart + 1
-      goto continue
+    else
+      local openTagContent = text:sub(tagStart + 1, tagEnd - 1)
+      local foundTagName = openTagContent:match("^([%w%-%_]+)")
+
+      if not foundTagName then
+        position = tagEnd + 1
+      else
+        local isSelfClosing = openTagContent:match("/%s*$")
+
+        if isSelfClosing then
+          if not (keepMap and keepMap[foundTagName]) then
+            t_insert(sections, { start = tagStart, finish = tagEnd })
+          end
+          position = tagEnd + 1
+        else
+          local closePattern = "</" .. prelude.escMatch(foundTagName) .. ">"
+          local closeStart, closeEnd = text:find(closePattern, tagEnd)
+
+          if not closeStart then
+            position = tagEnd + 1
+          else
+            if not (keepMap and keepMap[foundTagName]) then
+              t_insert(sections, { start = tagStart, finish = closeEnd })
+            end
+            position = closeEnd + 1
+          end
+        end
+      end
     end
-
-    local fullTag = text:sub(tagStart + 1, tagEnd - 1)
-    local foundTagName = fullTag:match("^([%w%-%_]+)")
-
-    if not foundTagName then
-      position = tagEnd + 1
-      goto continue
-    end
-
-    local closePattern = "</" .. prelude.escMatch(foundTagName) .. ">"
-    local closeStart, closeEnd = text:find(closePattern, tagEnd)
-
-    if not closeStart then
-      position = tagEnd + 1
-      goto continue
-    end
-
-    position = closeEnd + 1
-
-    if not (keepMap and keepMap[foundTagName]) then
-      table.insert(sections, { start = tagStart, finish = closeEnd })
-    end
-
-    ::continue::
   end
 
   if #sections == 0 then return text end
@@ -213,7 +231,7 @@ local function removeAllNodes(text, tagsToKeep)
 
   for _, section in ipairs(sections) do
     local preText = text:sub(lastPos, section.start - 1)
-    table.insert(parts, preText)
+    t_insert(parts, preText)
 
     -- 줄바꿈 중복 제거
     -- 조건: 방금 추가한 텍스트가 '\n'으로 끝나고, 삭제 후 이어질 텍스트가 '\n'으로 시작한다면?
@@ -238,7 +256,7 @@ local function removeAllNodes(text, tagsToKeep)
     end
   end
 
-  table.insert(parts, text:sub(lastPos))
+  t_insert(parts, text:sub(lastPos))
 
   return table.concat(parts)
 end
@@ -329,7 +347,7 @@ local function extractBlocks(tag, content, tagToEnd)
       end
     end
 
-    table.insert(results, blockContent)
+    t_insert(results, blockContent)
 
     if not nextS then break end
   end
@@ -430,16 +448,16 @@ local function genHTML(tag, content)
         if type(v) == "table" and getmetatable(v) ~= safe_mt then
           -- 배열 형태의 자식 처리
           for _, child in ipairs(v) do
-            table.insert(bodyTable, safeHTML(child))
+            t_insert(bodyTable, safeHTML(child))
           end
         elseif v ~= nil then
-          table.insert(bodyTable, safeHTML(v))
+          t_insert(bodyTable, safeHTML(v))
         end
       end
     elseif kType == "string" then
       if k ~= "closed" and k ~= "void" then
         local attrName = k == "htmlFor" and "for" or k:gsub("_", "-")
-        table.insert(attTable, string.format('%s="%s"', attrName, safeHTML(v)))
+        t_insert(attTable, string.format('%s="%s"', attrName, safeHTML(v)))
       end
     end
   end
@@ -495,3 +513,5 @@ end
 
 _ENV.h = hx()
 _ENV.hraw = rawHTML
+
+return _ENV.prelude

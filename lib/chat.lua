@@ -6,6 +6,10 @@
 local Chat = {}
 
 --- @param triggerId string
+--- @return string
+function getCharacterLastMessage(triggerId) end
+
+--- @param triggerId string
 --- @return number
 function getChatLength(triggerId) end
 
@@ -17,6 +21,10 @@ function getFullChat(triggerId) end
 --- @param index number
 --- @return Chat
 function getChat(triggerId, index) end
+
+--- @param triggerId string
+--- @return number
+function getChatLength(triggerId) end
 
 --- @param triggerId string
 --- @param index number

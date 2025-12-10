@@ -1,0 +1,18 @@
+--- @meta
+
+--- @class Manifest
+--- @field authorsNote boolean
+--- @field charDesc boolean
+--- @field identifier string
+--- @field lazy boolean
+--- @field loreBooks boolean
+--- @field maxCtx number?
+--- @field maxLogs number?
+--- @field mode '1'|'2'
+--- @field multilingual boolean
+--- @field personaDesc boolean
+--- @field rerollBehavior 'preserve-prev'|'remove-prev'
+--- @field onInput (fun (triggerId: string, input: string, index: number): string)?
+--- @field onOutput (fun (triggerId: string, output: string): string)?
+--- @field onMutation (fun (triggerId: string, action: string, output: string): string)?
+--- @field onValidate (fun (triggerId: string, output: string): boolean)?

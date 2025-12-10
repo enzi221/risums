@@ -18,6 +18,10 @@ end
 function onOutput(triggerId, output)
   setTriggerId(triggerId)
 
+  if not string.find(output, '<lb%-news') then
+    return nil
+  end
+
   if not string.find(output, "</lb%-news>") then
     output = output .. '\n</lb-news>'
   end
@@ -42,7 +46,11 @@ function onOutput(triggerId, output)
     return openTag .. newAttrs .. closeTag
   end)
 
-  return prelude.removeAllNodes(output, { 'lb-news', 'lb-process' })
+  local results = {}
+  for _, node in ipairs(prelude.queryNodes('lb-news', output)) do
+    table.insert(results, output:sub(node.rangeStart, node.rangeEnd))
+  end
+  return table.concat(results, '\n\n')
 end
 
 return onOutput

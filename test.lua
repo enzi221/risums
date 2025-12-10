@@ -34,7 +34,7 @@ function framework.printSummary()
   print(string.format("Passed: %d", passedTests))
   print(string.format("Failed: %d", failedTests))
   print(string.rep("=", 50))
-  
+
   if failedTests == 0 then
     print("✓ All tests passed!")
     os.exit(0)
@@ -62,6 +62,31 @@ end
 
 function framework.incrementFailed()
   failedTests = failedTests + 1
+end
+
+function framework.tableToString(t, indent)
+  indent = indent or 0
+  if type(t) ~= "table" then
+    return tostring(t)
+  end
+
+  local str = "{\n"
+  local first = true
+  local indentStr = string.rep("  ", indent + 1)
+
+  for k, v in pairs(t) do
+    if not first then str = str .. ",\n" end
+    first = false
+    str = str .. indentStr .. "[" .. tostring(k) .. "] = "
+    if type(v) == "table" then
+      str = str .. framework.tableToString(v, indent + 1)
+    else
+      str = str .. tostring(v)
+    end
+  end
+
+  str = str .. "\n" .. string.rep("  ", indent) .. "}"
+  return str
 end
 
 return framework
