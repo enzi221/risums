@@ -1,7 +1,6 @@
 const fs = require('fs')
 const path = require('path')
 
-// CLI 설정
 const args = process.argv.slice(2)
 if (args.length < 2) {
   console.error('❌ Usage: node bundle.js <entry.lua> <output.lua>')
@@ -9,8 +8,14 @@ if (args.length < 2) {
 }
 
 const ENTRY_FILE = args[0]
-let OUTPUT_FILE = args[1]
-if (path.extname(OUTPUT_FILE) !== '.lua') OUTPUT_FILE += '.lua'
+let outputPath = args[1]
+
+if (fs.existsSync(outputPath) && fs.statSync(outputPath).isDirectory()) {
+  outputPath = path.join(outputPath, path.basename(ENTRY_FILE))
+}
+
+if (path.extname(outputPath) !== '.lua') outputPath += '.lua'
+const OUTPUT_FILE = outputPath
 
 // 상태 관리
 const includedModules = new Set()
@@ -31,19 +36,24 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-// 주석/공백 제거 + 문자열 보호
 function smartMinify(content) {
   const tokenRegex = /(--\[(=*)\[[\s\S]*?\]\2\])|(--.*)|(\[(=*)\[[\s\S]*?\]\5\])|("([^"\\]|\\.)*")|('([^'\\]|\\.)*')/g
 
   return content
     .replace(tokenRegex, (match, longComm, lcEq, shortComm) => {
-      // 주석이면 공백 하나로 치환 (안전성 확보)
-      if (longComm || shortComm) return ' '
+      if (longComm || shortComm) {
+        // 한 줄 주석: --! 로 시작하면 유지
+        if (shortComm && match.startsWith('--!')) return match
+        // 블록 주석: --[[! 또는 --[=[! 처럼 내부에 !로 시작하면 유지
+        if (longComm && /^--\[(=*)\[!/.test(match)) return match
+
+        return ' '
+      }
       return match
     })
     .split('\n')
-    .map((line) => line.trim()) // 앞뒤 공백 제거
-    .filter((line) => line.length > 0) // 빈 줄 제거
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
     .join('\n')
 }
 

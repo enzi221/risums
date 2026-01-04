@@ -1,7 +1,6 @@
---- See original at https://arca.live/b/characterai/133962148
---- Modified by amonamona
-
---- LightBoard HN
+--! Copyright (c) 2025-2026 amonamona
+--! CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
+--! LightBoard HunterNet
 
 local triggerId = ''
 

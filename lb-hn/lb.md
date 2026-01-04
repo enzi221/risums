@@ -72,13 +72,6 @@ All post topics MUST NOT mimic/resemble protagonist or their partners' actions/t
 
 Protagonist and their partners' character profiles should be considered private, out-of-narrative meta information. Simulate contents in such a way that board users are unaware of protagonist/partners' private details.
 
-{{#when {{? {{getglobalvar::toggle_lb-hn.privacy}} == 0}}}}
-
-This world revolves around the protagonist ({{user}}) and their partners. Board users may discuss their actions, rumors, sightings of them freely unless it was done in private spaces without a chance for witnesses. They intrigue board users. Include at least one post discussing them in some way.
-
-{{/when}}
-{{#when {{? {{getglobalvar::toggle_lb-hn.privacy}} > 0}}}}
-
 #### Protagonist/Partners privacy
 
 {{#when {{and::{{? {{length::{{trim::{{getglobalvar::toggle_lb-hn.protagonist}} }} }} > 0 }}::{{? {{getglobalvar::toggle_lb-hn.protagonist}} != null}}}}}}
@@ -87,7 +80,11 @@ User controlled character ({{getglobalvar::toggle_lb-hn.protagonist}}) should be
 User controlled character ({{user}}) should be considered the protagonist for this section. Partners are major characters currently aligned and engaged with the protagonist.
 {{/when}}
 
+{{#when {{? {{getglobalvar::toggle_lb-hn.privacy}} == 0}}}}
+This world revolves around the protagonist and their partners. Board users may discuss their actions, rumors, sightings of them freely unless it was done in private spaces without a chance for witnesses. They intrigue board users. Include at least one post discussing them in some way.
+{{:else}}
 All posts should focus on simulating the "living background world", not a world which revolves around the protagonist.
+{{/when}}
 
 {{#when {{? {{getglobalvar::toggle_lb-hn.privacy}} == 1}}}}
 
@@ -128,7 +125,6 @@ Even if protagonist and their partners are the most important figure, their acti
 
 Absolutely do not include anything about protagonist and their partners. Discussion should be strictly limited to their actions' aftermath. Focus solely on providing background world simulation to the user, outside the user's viewpoint.
 
-{{/when}}
 {{/when}}
 
 ## Major characters

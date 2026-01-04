@@ -1,8 +1,3 @@
---- Copyright (c) 2025 amonamona
---- CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
-
---- LightBoard Backend
-
 ---@diagnostic disable: lowercase-global
 
 local manifest = require('./manifest')
@@ -271,8 +266,8 @@ end
 local runPipelineAsync = async(runPipeline)
 
 local main = async(function()
-  local mode = getGlobalVar(triggerId, "toggle_lightboard.active") or "0"
-  if mode == "0" then
+  local active = prelude.getFlagToggle(triggerId, 'lightboard.active')
+  if not active then
     return
   end
 
@@ -313,9 +308,7 @@ local main = async(function()
   end
 
   if #allProcessedResults > 0 then
-    local position = getGlobalVar(triggerId, 'toggle_lightboard.position') or '0'
-
-    -- Get latest full chat again in case of other scripts modified it
+    -- Get the latest full chat again in case other scripts modified it
     local fullChatNewest = getFullChat(triggerId)
     local lastCharChatIdx = findLastCharChat(fullChatNewest, 0, 5)
     local lastCharChat = lastCharChatIdx and fullChatNewest[lastCharChatIdx].data or ''
@@ -325,11 +318,16 @@ local main = async(function()
     local footer = '\n\n[LBDATA END]\n---'
 
     local assembled = header .. contents .. footer
-    local finalMessage = position == '0'
-        and lastCharChat .. '\n\n' .. assembled
-        or assembled .. '\n\n' .. lastCharChat
+    -- 0: append, 1: prepend, 2: separated
+    local position = getGlobalVar(triggerId, 'toggle_lightboard.position') or '0'
 
-    setChat(triggerId, lastCharChatIdx ~= nil and (lastCharChatIdx - 1) or -1, finalMessage)
+    if position == '2' then
+      addChat(triggerId, 'char', assembled)
+    else
+      local finalMessage = position == '1' and assembled .. '\n\n' .. lastCharChat or
+          lastCharChat .. '\n\n' .. assembled
+      setChat(triggerId, lastCharChatIdx ~= nil and (lastCharChatIdx - 1) or -1, finalMessage)
+    end
   else
     print("[LightBoard] All manifests processed. No new content to add.")
   end
@@ -356,8 +354,8 @@ end)
 ---@param identifier string module identifier
 ---@param blockID string? for rerolling specific block
 local function reroll(identifier, blockID)
-  local mode = getGlobalVar(triggerId, "toggle_lightboard.active") or "O"
-  if mode == "0" then
+  local active = prelude.getFlagToggle(triggerId, 'lightboard.active')
+  if not active then
     error('리롤 전에 백엔드를 활성화해주세요.')
     return
   end
@@ -480,8 +478,8 @@ end
 ---@param action string
 ---@param direction string
 local function interact(fullChat, identifier, action, direction)
-  local mode = getGlobalVar(triggerId, "toggle_lightboard.active") or "O"
-  if mode == "0" then
+  local active = prelude.getFlagToggle(triggerId, 'lightboard.active')
+  if not active then
     error('리롤 전에 백엔드를 활성화해주세요.')
     return
   end
@@ -746,7 +744,7 @@ end)
 listenEdit(
   "editRequest",
   function(tid, data)
-    if getGlobalVar(tid, 'toggle_lightboard.sendAsSystem') == '0' then
+    if getGlobalVar(tid, 'toggle_lightboard.sendAsChar') == '1' then
       return data
     end
 

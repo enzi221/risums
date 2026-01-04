@@ -17,6 +17,24 @@ Episodes: Concrete story checkpoints through current phase. Intentionally abstra
 
 Objective and phase remains constant until achieved or totally invalidated.
 
+{{#when {{? {{getglobalvar::toggle_lb-stage.direction}} == 1 }} }}
+
+### User Direction
+
+The user wants to guide story toward:
+{{#when {{? {{length::{{trim::{{getglobalvar::toggle_lb-stage.mood}} }} }} > 0 }} }}
+"{{getglobalvar::toggle_lb-stage.mood}}"
+{{:else}}
+(No input)
+{{/when}}
+
+Genre Tags:
+
+- Likes: {{getglobalvar::toggle_lb-stage.tags-likes}}
+- Dislikes: #Mary Sue {{getglobalvar::toggle_lb-stage.tags-dislikes}}
+
+{{/when}}
+
 ### Current State
 
 <lb-stage-reserve />

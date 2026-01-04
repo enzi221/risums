@@ -35,7 +35,7 @@ Criteria for 한문 usage:
 2. Abbreviations ("... 오후에 [hx;韓銀;한은] 총재에게 ... ")
 3. Formal terms that are commonly written in 한자 as you see fit
 
-Readability should come first; the goal is not to stuff as many 한자 as possible. Use 한자 only when it'd improve *formality*.
+Readability should come first; the goal is not to stuff as many 한자 as possible. Use 한자 only when it'd improve _formality_.
 
 Annotate each and every 한자 or any other words that require annotations for modern readers like [hx;target;explanation], and nothing else.
 
@@ -44,6 +44,7 @@ All other forms of annotations such as parenthesis are strictly prohibited. Do n
 BAD: 아파트 공공료 [hx;公共料;공공료] 인상 (REDUNTANT REPETITION - DONT)
 
 Good Example:
+
 - 아파트 [hx;公共料;공공료] 인상 (NO UNNECESSARY ANNOTATION - GOOD)
 - 안정성 [hx;檢證;검증] 필요 (NO UNNECESSARY ANNOTATION - GOOD)
 
@@ -59,7 +60,7 @@ Criteria for 한문 usage:
 2. Abbreviations ("... 오후에 [hx;韓銀;한은] 총재에게 ... ")
 3. Formal terms that are commonly written in 한자 as you see fit
 
-Readability should come first; the goal is not to stuff as many 한자 as possible. Use 한자 only when it'd improve *formality*.
+Readability should come first; the goal is not to stuff as many 한자 as possible. Use 한자 only when it'd improve _formality_.
 
 Examples:
 
@@ -77,10 +78,12 @@ Examples:
 Annotate each and every 한자 or any other words that require annotations for modern readers like [hx;target;explanation], and nothing else.
 
 BAD:
+
 - 명약 [hx;金鷄蠟;금계랍](퀴닌)은 학질을 떼는 데 귀신갓흔 효험이 잇다 (ONLY HX ANNOTATIONS ALLOWED - DONT)
 - 됴션 [hx;됴션;조선] 사람들은 졍신을 바짝 차려야 (REDUNTANT REPETITION - DONT)
 
 Good Example:
+
 - 명약 [hx;金鷄蠟;금계랍, 퀴닌]은 학질을 떼는 데 귀신갓흔 효험이 잇다 (ONLY HX USED - GOOD)
 - [hx;됴션;조선] 사람들은 졍신을 바짝 차려야 (NO UNNECESSARY ANNOTATION - GOOD)
 
@@ -119,29 +122,48 @@ In any case, DO NOT REFLECT current scenes in dedicated advertisements. IT FEELS
 
 Advertisement articles requires less efforts, thus they can reflect recent events if plausible.
 
-{{#when {{? {{getglobalvar::toggle_lb-news.privacy}}>0}}}}
-
 #### Protagonist/Partners privacy
 
-User controlled character ({{user}}) should be considered a protagonist for this section.
+{{#when {{and::{{? {{length::{{trim::{{getglobalvar::toggle_lb-news.protagonist}} }} }} > 0 }}::{{? {{getglobalvar::toggle_lb-news.protagonist}} != null}}}}}}
+User controlled character ({{getglobalvar::toggle_lb-news.protagonist}}) should be considered the protagonist for this section. Partners are major characters currently aligned and engaged with the protagonist.
+{{:else}}
+User controlled character ({{user}}) should be considered the protagonist for this section. Partners are major characters currently aligned and engaged with the protagonist.
+{{/when}}
 
-All posts should focus on simulating the "living background world", not a world which revolves around the protagonist.
+{{#when {{? {{getglobalvar::toggle_lb-news.privacy}} == 0}}}}
+This world revolves around the protagonist and their partners. Writes may discuss their actions, rumors, sightings of them freely unless it was done in private spaces without a chance for witnesses. They intrigue news readers. Include at least one article discussing them in some way.
+{{:else}}
+All articles should focus on simulating the "living background world", not a world which revolves around the protagonist.
+{{/when}}
 
-{{#when {{? {{getglobalvar::toggle_lb-mini.privacy}} == 1}}}}
+{{#when {{? {{getglobalvar::toggle_lb-news.privacy}} == 1}}}}
 
 Protagonist and their partners' activities in private or remote spaces (home, safehouses, anywhere without witnesses) are not suitable as topics. Include the activity's aftermath ONLY IF the action was very impactful enough to leave such aftermath. These must be limited to rumors or official statements ONLY unless narrative allows direct observation/interview.
 
 {{/when}}
-{{#when {{? {{getglobalvar::toggle_lb-mini.privacy}} == 2}}}}
+{{#when {{? {{getglobalvar::toggle_lb-news.privacy}} == 2}}}}
+
+Protagonist and their partners must be considered as ordinary people of this world, and as such, their actions are not suitable as topics, unless they are important figures (local celebrities, politicians, business leaders, etc) in their communities.
+
+Even if protagonist and their partners are the most important figure, their activities in private or remote spaces (home, safehouses, anywhere without witnesses) are not suitable as topics. Include the activity's aftermath ONLY IF the action was very impactful enough to leave such aftermath. These must be limited to rumors or official statements ONLY unless narrative allows direct observation/interview.
+
+{{/when}}
+{{#when {{? {{getglobalvar::toggle_lb-news.privacy}} == 3}}}}
 
 Protagonist and their partners must be considered as ordinary people of this world, and as such, their actions are not suitable as topics, unless:
 
 - They are absolutely the most important figure (world-saving hero, world-ending villain, etc) of the world.
 - Their activities caused long-lasting, large-scale impact on the world.
 
+Otherwise, writers won't bother covering them.
+
 Even if protagonist and their partners are the most important figure, their activities in private or remote spaces (home, safehouses, anywhere without witnesses) are not suitable as topics. Include the activity's aftermath ONLY IF the action was very impactful enough to leave such aftermath. These must be limited to rumors or official statements ONLY unless narrative allows direct observation/interview.
 
 {{/when}}
+{{#when {{? {{getglobalvar::toggle_lb-news.privacy}} == 4}}}}
+
+Absolutely do not include anything about protagonist and their partners. Articles should be strictly limited to their actions' aftermath. Focus solely on providing background world simulation to the user, outside the user's viewpoint.
+
 {{/when}}
 
 # Example

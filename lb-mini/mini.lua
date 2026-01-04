@@ -1,7 +1,6 @@
---- Copyright (c) 2025 amonamona
---- CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
-
---- LightBoard Miniboard
+--! Copyright (c) 2025-2026 amonamona
+--! CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
+--! LightBoard Miniboard
 
 local triggerId = ''
 

@@ -1,10 +1,9 @@
---- Copyright (c) 2025 amonamona
---- CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
+--! Copyright (c) 2025-2026 amonamona
+--! CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
+--! LightBoard Prelude
 
---- LightBoard Prelude
 
-
---[[
+--[[!
 local triggerId = ''
 
 local function setTriggerId(tid)
@@ -83,6 +82,13 @@ local function escMatch(str)
   return str
 end
 
+---@param triggerId string
+---@param flagName string
+---@return boolean
+local function getFlagToggle(triggerId, flagName)
+  return getGlobalVar(triggerId, 'toggle_' .. flagName) == '1'
+end
+
 ---@class Node
 ---@field attributes table<string, string>
 ---@field content string
@@ -110,74 +116,74 @@ local function queryNodes(tagNameRaw, text)
     else
       -- Find where the opening tag ends
       local tagEnd = text:find(">", startIdx)
-    if not tagEnd then
-      i = startIdx + 1
-    else
-      -- Extract all attributes from the opening tag
-      local openTagContent = text:sub(
-        startIdx + #("<" .. tagNameRaw),
-        tagEnd - 1
-      )
-      local attrs = {}
-
-      -- quoted attributes: key="val" or key='val'
-      for key, _, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*(['\"])(.-)%2") do
-        attrs[key] = val
-      end
-
-      -- unquoted attributes: key=val
-      for key, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*([^%s\"'>]+)") do
-        if not attrs[key] then attrs[key] = val end
-      end
-
-      -- boolean attributes: key (without value)
-      -- First, remove all already parsed attributes to avoid conflicts
-      local tempContent = openTagContent
-      -- Remove quoted attributes
-      tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*(['\"])(.-)%2", "")
-      -- Remove unquoted attributes
-      tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*([^%s\"'>]+)", "")
-      -- Now find standalone attribute names
-      for key in tempContent:gmatch("([%w:_-]+)") do
-        if key and key ~= "" and not attrs[key] then
-          attrs[key] = "true"
-        end
-      end
-
-      -- Check if self-closing
-      local isSelfClosing = openTagContent:match("/%s*$")
-
-      if isSelfClosing then
-        -- Self-closing tag: no content, rangeEnd is the closing >
-        t_insert(results, {
-          attributes = attrs,
-          content    = "",
-          rangeEnd   = tagEnd,
-          rangeStart = startIdx,
-        })
-        i = tagEnd + 1
+      if not tagEnd then
+        i = startIdx + 1
       else
-        -- Find closing tag
-        local closeStart, _ = text:find("</" .. tagName .. ">", tagEnd)
-        if not closeStart then
-          i = tagEnd + 1
-        else
-          local closeEnd = closeStart + #("</" .. tagNameRaw .. ">") - 1
+        -- Extract all attributes from the opening tag
+        local openTagContent = text:sub(
+          startIdx + #("<" .. tagNameRaw),
+          tagEnd - 1
+        )
+        local attrs = {}
 
-          -- Extract inner content
-          local contentOnly = text:sub(tagEnd + 1, closeStart - 1)
+        -- quoted attributes: key="val" or key='val'
+        for key, _, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*(['\"])(.-)%2") do
+          attrs[key] = val
+        end
 
+        -- unquoted attributes: key=val
+        for key, val in openTagContent:gmatch("([%w:_-]+)%s*=%s*([^%s\"'>]+)") do
+          if not attrs[key] then attrs[key] = val end
+        end
+
+        -- boolean attributes: key (without value)
+        -- First, remove all already parsed attributes to avoid conflicts
+        local tempContent = openTagContent
+        -- Remove quoted attributes
+        tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*(['\"])(.-)%2", "")
+        -- Remove unquoted attributes
+        tempContent = tempContent:gsub("([%w:_-]+)%s*=%s*([^%s\"'>]+)", "")
+        -- Now find standalone attribute names
+        for key in tempContent:gmatch("([%w:_-]+)") do
+          if key and key ~= "" and not attrs[key] then
+            attrs[key] = "true"
+          end
+        end
+
+        -- Check if self-closing
+        local isSelfClosing = openTagContent:match("/%s*$")
+
+        if isSelfClosing then
+          -- Self-closing tag: no content, rangeEnd is the closing >
           t_insert(results, {
             attributes = attrs,
-            content    = contentOnly,
-            rangeEnd   = closeEnd,
+            content    = "",
+            rangeEnd   = tagEnd,
             rangeStart = startIdx,
           })
+          i = tagEnd + 1
+        else
+          -- Find closing tag
+          local closeStart, _ = text:find("</" .. tagName .. ">", tagEnd)
+          if not closeStart then
+            i = tagEnd + 1
+          else
+            local closeEnd = closeStart + #("</" .. tagNameRaw .. ">") - 1
 
-          i = closeEnd + 1
+            -- Extract inner content
+            local contentOnly = text:sub(tagEnd + 1, closeStart - 1)
+
+            t_insert(results, {
+              attributes = attrs,
+              content    = contentOnly,
+              rangeEnd   = closeEnd,
+              rangeStart = startIdx,
+            })
+
+            i = closeEnd + 1
+          end
         end
       end
-    end
     end
   end
 
@@ -411,6 +417,7 @@ _ENV.prelude = {
   escEntities = escEntities,
   escMatch = escMatch,
   extractNodes = queryNodes,
+  getFlagToggle = getFlagToggle,
   getPriorityLoreBook = getPriorityLoreBook,
   import = import,
   queryNodes = queryNodes,
