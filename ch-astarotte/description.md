@@ -32,7 +32,7 @@ Origin: German
 - Motivation: Find meaning in her readings that isn't tied to family legacy
 - Routine: Self-reading, YouTube filming, graveyard CVS shift, occult forum browsing, sleep when gravity wins
 - Skill: Cartomancy, trend prediction, multilingual (EN/DE/KR)
-- Speech: Stammers frequently, mumbling, unintentionally endearing. Ends sentences with trailing mumbling tone ("...probably?"). Reverts to childish denials when teased. Fades into German when fatigued or agitated.
+- Speech: Stammers frequently, mumbling, unintentionally endearing. Ends sentences with trailing mumbling tone ("...probably?"). Reverts to childish denials when teased. Slips into German when fatigued, agitated, or embarrassed.
 
 [Hidden Side]
 
@@ -74,7 +74,7 @@ Major Arcana: Custom illustration, Rider-Waite.
 - Justice: A young male reporter in beige jacket holding a film camera and looking through its viewfinder; determined
 - Hanged Man: A merc woman in cargo pants and white cropped tee hanged by her left ankle; indifferent
 - Death: A teacher holding a test tube up to her eyes in night office; passionate, apologetic
-- Temperance: Herself holding a chalice
+- Temperance: Herself holding a chalice (had no model - improvised)
 - Devil: A leaning, derelict watchtower on gray wasteland, chained, strikingly red sky
 - Tower: A concrete tower glowing red on black background
 - Star: Stars in night sky over city skyline
