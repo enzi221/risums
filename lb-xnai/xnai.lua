@@ -6,38 +6,32 @@ local triggerId = ''
 
 local function setTriggerId(tid)
   triggerId = tid
+  if type(prelude) ~= 'nil' then
+    prelude.import(tid, 'toon.decode')
+    return
+  end
   local source = getLoreBooks(triggerId, 'lightboard-prelude')
   if not source or #source == 0 then
     error('Failed to load lightboard-prelude.')
   end
   load(source[1].content, '@prelude', 't')()
+  prelude.import(tid, 'toon.decode')
 end
 
----@class AnnotData
----@field desc string
----@field locator string
----@field text string
----@field target string
+---@class XNAIDescriptor
+---@field camera string
+---@field characters string[]
+---@field inlay? string
+---@field locator? string
+---@field scene string
 
----@class ChatAnnots
----@field annots AnnotData[]
----@field chatIndex number
+---@class XNAIData
+---@field keyvis XNAIDescriptor
+---@field scenes XNAIDescriptor[]
 
----@class PinnedAnnotData
----@field chatIndex number
----@field desc string
----@field target string
-
----@param pinned PinnedAnnotData[]
----@param target string
-local function isPinned(pinned, target)
-  for _, p in ipairs(pinned) do
-    if p.target == target then
-      return true
-    end
-  end
-  return false
-end
+---@class XNAIState
+---@field pinned XNAIData[]
+---@field stack XNAIData
 
 ---@param chatAnnots ChatAnnots
 ---@param data string
@@ -98,129 +92,22 @@ local function renderInline(chatAnnots, data, fullState)
   return output
 end
 
----@class AnnotsState
----@field pinned PinnedAnnotData[]
----@field stack ChatAnnots[]
-
----@param chatAnnotsMaybe ChatAnnots?
----@param fullState AnnotsState
-local function renderCollection(chatAnnotsMaybe, fullState)
-  local id = triggerId .. '-lb-annot'
-
-  local chatAnnots = chatAnnotsMaybe or {}
-  local annots = chatAnnots.annots or {}
-  local pinned = fullState.pinned or {}
-
-  local annot_es = #annots > 0 and {} or { h.div['lb-annot-collection-empty'] { '여기 달린 주석이 없어요' } }
-  for _, annot in ipairs(annots) do
-    local pinnedState = isPinned(pinned, annot.target)
-    table.insert(annot_es, h.li['lb-annot-item'] {
-      h.span['lb-annot-target'] {
-        annot.target,
-        h.button['lb-annot-pin-btn'] {
-          popovertarget = id,
-          risu_btn = 'lb-annot-pin/' .. annot.target .. '_' .. annot.desc,
-          type = 'button',
-          title = pinnedState and '고정 해제' or '고정',
-          pinnedState and h.lb_annot_pin { closed = true, pinned = true } or h.lb_annot_pin { closed = true },
-        },
-        h.button['lb-annot-delete-btn'] {
-          popovertarget = id,
-          risu_btn = 'lb-annot-delete/' .. chatAnnots.chatIndex .. '_' .. annot.target,
-          type = 'button',
-          title = '주석 삭제',
-          h.lb_trash_icon { closed = true },
-        },
-      },
-      h.span['lb-annot-desc'] { annot.desc }
-    })
-  end
-
-  local target_es = #annots > 0 and {} or { h.span['lb-annot-opener-item'] { '지난 주석 보기' } }
-  for _, annot in ipairs(annots) do
-    table.insert(target_es, h.span['lb-annot-opener-item'] { annot.target })
-  end
-
-  local stack_es = {}
-  for i = #fullState.stack, 1, -1 do
-    local chatData = fullState.stack[i]
-    if chatData.annots and #chatData.annots > 0 then
-      local chatAnnot_es = {}
-      for _, annot in ipairs(chatData.annots) do
-        table.insert(chatAnnot_es, h.div['lb-annot-saved-item'] {
-          h.span['lb-annot-saved-target'] {
-            annot.target,
-          },
-          h.span['lb-annot-saved-desc'] { annot.desc }
-        })
-      end
-
-      table.insert(stack_es, h.div['lb-annot-hist-group'] {
-        h.div['lb-annot-hist-header'] {
-          '#' .. chatData.chatIndex,
-          h.button['lb-annot-hist-delete-btn'] {
-            popovertarget = id,
-            risu_btn = 'lb-annot-delete/' .. chatData.chatIndex,
-            type = 'button',
-            title = '전체 삭제',
-            h.lb_trash_icon { closed = true },
-          },
-        },
-        h.div['lb-annot-hist-items'](chatAnnot_es),
-      })
-    end
-  end
-
-  if #stack_es == 0 then
-    stack_es = { h.div['lb-annot-collection-empty'] { '저장된 주석이 없어요' } }
-  end
-
-  local pinned_es = {}
-  for _, p in ipairs(pinned) do
-    table.insert(pinned_es, h.div['lb-annot-saved-item'] {
-      h.span['lb-annot-saved-target'] { p.target },
-      h.span['lb-annot-saved-desc'] { p.desc },
-      h.button['lb-annot-unpin-btn'] {
-        popovertarget = id,
-        risu_btn = 'lb-annot-pin/' .. p.target .. '_' .. p.desc,
-        type = 'button',
-        title = '고정 해제',
-        h.lb_annot_pin { closed = true, pinned = true },
-      },
-    })
-  end
-
-  local pinned_section = #pinned > 0 and h.div['lb-annot-pinned'] {
-    h.div['lb-annot-pinned-header'] { '고정된 주석' },
-    h.div['lb-annot-pinned-list'](pinned_es),
-  } or nil
+---@param xnaiData XNAIData
+local function renderCollection(xnaiData)
+  local id = triggerId .. '-lb-xnai'
 
   return tostring(h.div['lb-module-root'] {
-    data_id = 'lb-annot',
-    h.button['lb-annot-opener'] {
+    data_id = 'lb-xnai',
+    h.button['lb-xnai-opener'] {
       popovertarget = id,
       type = 'button',
-      target_es,
+      -- add text here?
     },
-    h.dialog['lb-dialog lb-annot-dialog'] {
+    h.dialog['lb-dialog lb-xnai-dialog'] {
       id = id,
       popover = '',
-      h.header['lb-annot-header'] {
-        h.span '주석 목록',
-        h.button['lb-reroll'] {
-          popovertarget = id,
-          risu_btn = 'lb-reroll__lb-annot',
-          type = 'button',
-          h.lb_reroll_icon { closed = true }
-        },
-      },
-      h.ul['lb-annot-list'](annot_es),
-      h.details['lb-annot-history'] {
-        h.summary { '지난 기록' },
-        pinned_section,
-        h.div['lb-annot-history-content'](stack_es),
-      },
-      h.button['lb-annot-close'] {
+      -- whatever contents
+      h.button['lb-xnai-close'] {
         popovertarget = id,
         type = 'button',
         "닫기",
@@ -241,35 +128,24 @@ listenEdit(
       end
     end
 
-    ---@type AnnotsState
-    local fullState = getState(triggerId, 'lb-annot-data') or {}
-
     local out = data
-    local nodes = prelude.queryNodes('lb-annot', out)
+    local nodes = prelude.queryNodes('lb-xnai', out)
     if #nodes > 0 then
       local node = nodes[#nodes]
       local before = out:sub(1, node.rangeStart - 1)
       local after = out:sub(node.rangeEnd + 1)
 
-      ---@type ChatAnnots?
-      local annots = nil
-      for _, chatAnnots in ipairs(fullState.stack) do
-        if chatAnnots.chatIndex == (tonumber(node.attributes.of) or meta.index) then
-          annots = chatAnnots
-          break
-        end
-      end
+      ---@type XNAIData
+      local xnaiData = prelude.decode(node.content)
 
-      local success, result = pcall(renderCollection, annots, fullState)
+      local success, result = pcall(renderCollection, xnaiData)
       if success then
         out = before .. after .. result
       else
-        print("[LightBoard] Annot collection render failed:", tostring(result))
+        print("[LightBoard] XNAI collection render failed:", tostring(result))
       end
-    end
 
-    for _, item in ipairs(fullState.stack) do
-      if item.chatIndex == meta.index then
+      for _, item in ipairs(xnaiData.scenes) do
         local success, result = pcall(renderInline, item, out, fullState)
         if success then
           return result

@@ -21,6 +21,12 @@ function LLM(triggerId, prompt) end
 function axLLM(triggerId, prompt) end
 
 --- @param triggerId string
+--- @param prompt string
+--- @param negativePrompt string
+--- @return Promise<string>
+function generateImage(triggerId, prompt, negativePrompt) end
+
+--- @param triggerId string
 --- @param text string
 --- @return Promise<number>
 function getTokens(triggerId, text) end
