@@ -73,7 +73,7 @@ local function assembleAuthorDisplay(authorData)
   }
 end
 
-local function render(node)
+local function render(node, chatIndex)
   local rawContent = node.content
   if not rawContent or rawContent == "" then
     return "[LightBoard Error: Empty Content]"
@@ -118,17 +118,25 @@ local function render(node)
     end
   end
 
+  local id = 'lb-hn-' .. math.random()
   local post_es = {}
 
   if #posts > 0 then
-    for _, post in ipairs(posts) do
+    for pi, post in ipairs(posts) do
       local comment_es = {}
-      for _, comment in ipairs(post.comments or {}) do
+      for ci, comment in ipairs(post.comments or {}) do
         local comment_e = h.li['lb-hn-comment-item'] {
           h.span['lb-hn-comment-author'] {
             assembleAuthorDisplay(comment),
           },
-          comment.content or "(내용 없음)"
+          comment.content or "(내용 없음)",
+          h.button['lb-hn-icon-btn lb-hn-delete-comment'] {
+            popovertarget = id,
+            risu_btn = 'lb-hn-delete/' .. chatIndex .. '_' .. pi .. '_' .. ci,
+            type = 'button',
+            title = '댓글 삭제',
+            h.lb_trash_icon { closed = true },
+          },
         }
 
         table.insert(comment_es, comment_e)
@@ -186,10 +194,21 @@ local function render(node)
             h.ul['lb-hn-comment-list'] {
               comment_es
             },
-            h.button['lb-hn-add-comment'] {
-              risu_btn = "lb-interaction__lb-hn__AddComment/Title:" .. post.title,
-              type = "button",
-              "댓글 달기"
+            h.div['lb-hn-comment-actions'] {
+              h.button['lb-hn-btn'] {
+                popovertarget = id,
+                risu_btn = 'lb-hn-delete/' .. chatIndex .. '_' .. pi,
+                type = 'button',
+                title = '게시글 삭제',
+                h.lb_trash_icon { closed = true },
+                '삭제'
+              },
+              h.button['lb-hn-btn'] {
+                risu_btn = 'lb-interaction__lb-hn__AddComment/Title:' .. post.title,
+                type = 'button',
+                h.lb_comment_icon { closed = true },
+                '댓글 달기'
+              },
             },
           } or nil
         }
@@ -201,8 +220,6 @@ local function render(node)
       '표시할 게시글 없음',
     }
   end
-
-  local id = 'lb-hn-' .. math.random()
 
   local boardTitle = node.attributes.name or "헌터넷 게시판"
   local html = h.div['lb-module-root'] {
@@ -282,7 +299,7 @@ local function render(node)
   return tostring(html)
 end
 
-local function main(data)
+local function main(data, chatIndex)
   if not data or data == '' then
     return ''
   end
@@ -308,7 +325,7 @@ local function main(data)
     end
     if i == #extractionResult then
       -- render lastResult in its original position
-      output = output .. render(lastResult)
+      output = output .. render(lastResult, chatIndex)
     end
     lastIndex = match.rangeEnd + 1
   end
@@ -321,14 +338,16 @@ listenEdit(
   function(tid, data, meta)
     setTriggerId(tid)
 
-    if meta and meta.index ~= nil then
-      local position = meta.index - getChatLength(triggerId)
+    local chatIndex = meta and meta.index or 0
+
+    if chatIndex ~= 0 then
+      local position = chatIndex - getChatLength(triggerId)
       if position < -9 then
         return data
       end
     end
 
-    local success, result = pcall(main, data)
+    local success, result = pcall(main, data, chatIndex)
     if success then
       return result
     else
@@ -337,3 +356,143 @@ listenEdit(
     end
   end
 )
+
+---@param author string
+---@param authorIP string?
+---@param authorRank string?
+---@param authorType 'F'|'S'?
+---@return string
+local function encodeAuthor(author, authorIP, authorRank, authorType)
+  if authorType and authorRank then
+    return authorType .. ":" .. author .. ":" .. authorRank
+  elseif authorIP and authorIP ~= "" then
+    return author .. "(" .. authorIP .. ")"
+  else
+    return author
+  end
+end
+
+---@param posts HNPostData[]
+---@return string
+local function encodePosts(posts)
+  local function escape(str)
+    if not str then return "" end
+    return str:gsub("\n", "\\n")
+        :gsub("\r", "\\r")
+        :gsub("\t", "\\t")
+  end
+
+  local lines = {}
+  table.insert(lines, "[" .. #posts .. "|]:")
+
+  for _, post in ipairs(posts) do
+    local authorStr = encodeAuthor(post.author, post.authorIP, post.authorRank, post.authorType)
+    table.insert(lines, "  - author: " .. authorStr)
+    table.insert(lines, "    id: " .. (post.id or ""))
+    table.insert(lines, "    title: " .. (post.title or ""))
+    table.insert(lines, "    time: " .. (post.time or ""))
+    table.insert(lines, "    views: " .. (post.views or ""))
+    table.insert(lines, "    upvotes: " .. (post.upvotes or ""))
+    table.insert(lines, "    content: " .. escape(post.content or ""))
+    table.insert(lines, "    comments[" .. #(post.comments or {}) .. "|]{author|content}:")
+    for _, comment in ipairs(post.comments or {}) do
+      local commentAuthorStr = encodeAuthor(comment.author, comment.authorIP, comment.authorRank, comment.authorType)
+      table.insert(lines, "      " .. commentAuthorStr .. "|" .. escape(comment.content or ""))
+    end
+  end
+
+  return table.concat(lines, "\n")
+end
+
+onButtonClick = async(function(tid, code)
+  setTriggerId(tid)
+
+  local prefix = "lb%-hn%-delete/"
+  local _, prefixEnd = string.find(code, prefix)
+
+  if not prefixEnd then
+    return
+  end
+
+  local body = code:sub(prefixEnd + 1)
+  if body == "" then
+    return
+  end
+
+  -- body: {chatIndex}/{postIndex}[/{commentIndex}]
+  local parts = prelude.split(body, '_')
+
+  if #parts < 2 then
+    return
+  end
+
+  local chatIndex = tonumber(parts[1])
+  local postIndex = tonumber(parts[2])
+  local commentIndex = tonumber(parts[3]) -- nil if deleting post
+
+  local deathMessage = chatIndex .. '번 채팅의 ' .. postIndex .. '번 글을 찾을 수 없습니다.'
+
+  if not chatIndex or not postIndex then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  local targetType = commentIndex and "댓글" or "글"
+  local confirmed = alertConfirm(tid, "정말 이 " .. targetType .. "을 지우시겠습니까?"):await()
+  if not confirmed then
+    return
+  end
+
+  local chat = getChat(tid, chatIndex)
+  if not chat or not chat.data then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  local nodes = prelude.queryNodes('lb-hn', chat.data)
+  if not nodes or #nodes == 0 then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  local node = nodes[#nodes]
+  local posts = prelude.toon.decode(node.content)
+
+  for _, post in ipairs(posts) do
+    local author = parseAuthorInfo(post.author or '')
+    post.author = author.name
+    post.authorIP = author.ip
+    post.authorRank = author.rank
+    post.authorType = author.authorType
+
+    for _, comment in ipairs(post.comments or {}) do
+      local commentAuthor = parseAuthorInfo(comment.author or '익명')
+      comment.author = commentAuthor.name
+      comment.authorIP = commentAuthor.ip
+      comment.authorRank = commentAuthor.rank
+      comment.authorType = commentAuthor.authorType
+    end
+  end
+
+  if postIndex < 1 or postIndex > #posts then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  if commentIndex then
+    local post = posts[postIndex]
+    if not post.comments or commentIndex < 1 or commentIndex > #post.comments then
+      alertNormal(tid, chatIndex .. '번 채팅 ' .. postIndex .. '번 글의 ' .. commentIndex .. '번 댓글을 찾을 수 없습니다.')
+      return
+    end
+    table.remove(post.comments, commentIndex)
+  else
+    table.remove(posts, postIndex)
+  end
+
+  local newContent = encodePosts(posts)
+  local newBlock = node.openTag .. "\n" .. newContent .. "\n</" .. node.tagName .. ">"
+  local newData = chat.data:sub(1, node.rangeStart - 1) .. newBlock .. chat.data:sub(node.rangeEnd + 1)
+
+  setChat(tid, chatIndex, newData)
+end)

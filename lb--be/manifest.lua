@@ -62,6 +62,7 @@ local function getManifests(triggerId)
           tbl.loreBooks                         = resolveConfig(triggerId, tbl.loreBooks, id, "loreBooks", false)
           tbl.lazy                              = resolveConfig(triggerId, tbl.lazy, id, "lazy", false)
           tbl.multilingual                      = resolveConfig(triggerId, tbl.multilingual, id, "multilingual", true)
+          tbl.personaDesc                       = resolveConfig(triggerId, tbl.personaDesc, id, "personaDesc", false)
 
           tbl.onInput                           = loadCallback(triggerId, id, 'onInput')
           tbl.onOutput                          = loadCallback(triggerId, id, 'onOutput')

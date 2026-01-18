@@ -6,6 +6,21 @@ local DEFAULT_CONFIG = {
   indent = 2
 }
 
+local function mergeConfig(options)
+  local cfg = {}
+  for k, v in pairs(DEFAULT_CONFIG) do
+    cfg[k] = v
+  end
+  if options then
+    for k, v in pairs(options) do
+      if v ~= nil then
+        cfg[k] = v
+      end
+    end
+  end
+  return cfg
+end
+
 local function unescapeString(str)
   local result = str:gsub("\\(.)", function(char)
     if char == "\\" then return "\\" end
@@ -18,85 +33,92 @@ local function unescapeString(str)
   return result
 end
 
-local function parseValue(token)
-  if token:match("^\".*\"$") then
-    local content = token:sub(2, -2)
-    return unescapeString(content)
-  end
-
-  if token == "true" then return true end
-  if token == "false" then return false end
-  if token == "null" then return nil end
-
-  if token:match("^0%d+$") then
-    return token
-  end
-
-  local num = tonumber(token)
-  if num then return num end
-
-  return token
-end
-
-local function splitValues(line, delimiter)
-  local values = {}
-  local current = ""
-  local inQuotes = false
+-- Tokenize while respecting quotes/escapes; optionally capture first target char position
+local function tokenize(line, delimiter, targetChar)
+  local tokens, current = {}, {}
+  local inQuotes, firstTarget = false, nil
   local i = 1
 
-  while i <= #line do
-    local char = line:sub(i, i)
+  local function push()
+    table.insert(tokens, table.concat(current))
+    current = {}
+  end
 
-    if char == "\\" and inQuotes then
-      if i < #line then
-        current = current .. char .. line:sub(i + 1, i + 1)
+  while i <= #line do
+    local c = line:sub(i, i)
+
+    if c == "\\" and i < #line then
+      local nextC = line:sub(i + 1, i + 1)
+      if inQuotes or nextC == "\"" or nextC == "\\" then
+        table.insert(current, c .. nextC)
         i = i + 2
       else
-        current = current .. char
+        table.insert(current, c)
         i = i + 1
       end
-    elseif char == "\"" then
+    elseif c == "\"" then
       inQuotes = not inQuotes
-      current = current .. char
+      table.insert(current, c)
       i = i + 1
-    elseif char == delimiter and not inQuotes then
-      table.insert(values, current)
-      current = ""
+    elseif delimiter and not inQuotes and c == delimiter then
+      push()
       i = i + 1
     else
-      current = current .. char
+      if not inQuotes and targetChar and not firstTarget and c == targetChar then
+        firstTarget = i
+      end
+      table.insert(current, c)
       i = i + 1
     end
   end
 
-  table.insert(values, current)
-  return values
+  push()
+  return tokens, firstTarget
+end
+
+local LITERALS = { ["true"] = true, ["false"] = false }
+
+local function parseValue(token)
+  if token:match('^".*"$') then
+    return unescapeString(token:sub(2, -2))
+  end
+
+  if token == "null" then return nil end
+  if LITERALS[token] ~= nil then return LITERALS[token] end
+
+  if token:match("^0%d+$") then return token end
+
+  local num = tonumber(token)
+  if num then return num end
+
+  return token:find("\\") and unescapeString(token) or token
+end
+
+local function splitValues(line, delimiter)
+  return tokenize(line, delimiter)
+end
+
+local function findUnquotedChar(str, char)
+  local _, pos = tokenize(str, nil, char)
+  return pos
 end
 
 local function parseHeader(headerStr)
   local bracketStart = headerStr:find("%[")
-  if not bracketStart then
-    return nil
-  end
+  if not bracketStart then return nil end
 
   local beforeBracket = headerStr:sub(1, bracketStart - 1)
 
   local bracketEnd = headerStr:find("%]", bracketStart)
-  if not bracketEnd then
-    return nil
-  end
+  if not bracketEnd then return nil end
 
   local bracketContent = headerStr:sub(bracketStart + 1, bracketEnd - 1)
 
   local afterBracket = headerStr:sub(bracketEnd + 1)
-  if not afterBracket:match("^:") and not afterBracket:match("^{") then
-    return nil
-  end
+  if not afterBracket:match("^:") and not afterBracket:match("^{") then return nil end
 
   local lengthStr = bracketContent:match("^(%d+)")
-  if not lengthStr then
-    return nil
-  end
+  if not lengthStr then return nil end
 
   local delimiter = ","
   local delimStart = #lengthStr + 1
@@ -115,22 +137,9 @@ local function parseHeader(headerStr)
 
   local fields
   if afterBracket:sub(1, 1) == "{" then
-    local braceEnd
-    local inQuotes = false
-    local i = 2
-    while i <= #afterBracket do
-      local c = afterBracket:sub(i, i)
-      if c == "\\" and inQuotes and i < #afterBracket then
-        i = i + 2
-      elseif c == "\"" then
-        inQuotes = not inQuotes
-        i = i + 1
-      elseif c == "}" and not inQuotes then
-        braceEnd = i
-        break
-      else
-        i = i + 1
-      end
+    local braceEnd = findUnquotedChar(afterBracket:sub(2), "}")
+    if braceEnd then
+      braceEnd = braceEnd + 1
     end
 
     if braceEnd then
@@ -140,7 +149,7 @@ local function parseHeader(headerStr)
         local fieldTokens = splitValues(fieldsContent, delimiter)
         for _, token in ipairs(fieldTokens) do
           local trimmed = token:match("^%s*(.-)%s*$")
-          if trimmed:match("^\".*\"$") then
+          if trimmed:match('^".*"$') then
             table.insert(fields, unescapeString(trimmed:sub(2, -2)))
           else
             table.insert(fields, trimmed)
@@ -190,25 +199,6 @@ local function parseLines(text, config)
   return parsed
 end
 
-local function findUnquotedChar(str, char)
-  local inQuotes = false
-  local i = 1
-  while i <= #str do
-    local c = str:sub(i, i)
-    if c == "\\" and inQuotes and i < #str then
-      i = i + 2
-    elseif c == "\"" then
-      inQuotes = not inQuotes
-      i = i + 1
-    elseif c == char and not inQuotes then
-      return i
-    else
-      i = i + 1
-    end
-  end
-  return nil
-end
-
 local decodeValue
 
 local function parseTabularRows(lines, startIdx, targetDepth, headerInfo)
@@ -245,8 +235,7 @@ local function parseTabularRows(lines, startIdx, targetDepth, headerInfo)
   return arr, idx
 end
 
-local function processSiblings(lines, startIdx, targetDepth, delimiter, config)
-  local obj = {}
+local function collectSiblings(obj, lines, startIdx, targetDepth, delimiter, config)
   local idx = startIdx
 
   while idx <= #lines and lines[idx].depth == targetDepth do
@@ -254,9 +243,9 @@ local function processSiblings(lines, startIdx, targetDepth, delimiter, config)
     local sibHeaderInfo = parseHeader(siblingLine.content)
 
     if sibHeaderInfo and sibHeaderInfo.key then
-      local arr, nextIdx = decodeValue(lines, idx, targetDepth, config, delimiter, true)
+      local arr
+      arr, idx = decodeValue(lines, idx, targetDepth, config, delimiter, true)
       obj[sibHeaderInfo.key] = arr
-      idx = nextIdx
     else
       local sibColonPos = findUnquotedChar(siblingLine.content, ":")
       if not sibColonPos then
@@ -267,8 +256,9 @@ local function processSiblings(lines, startIdx, targetDepth, delimiter, config)
       local sibParsedKey = parseValue(siblingLine.content:sub(1, sibColonPos - 1))
 
       if sibValue == "" then
-        obj[sibParsedKey], idx = decodeValue(lines, idx + 1, targetDepth + 1, config, delimiter)
-        obj[sibParsedKey] = obj[sibParsedKey] or {}
+        local child
+        child, idx = decodeValue(lines, idx + 1, targetDepth + 1, config, delimiter)
+        obj[sibParsedKey] = child or {}
       else
         obj[sibParsedKey] = parseValue(sibValue)
         idx = idx + 1
@@ -276,7 +266,89 @@ local function processSiblings(lines, startIdx, targetDepth, delimiter, config)
     end
   end
 
-  return obj, idx
+  return idx
+end
+
+local function decodeListItem(lines, startIdx, targetDepth, config, parentDelimiter)
+  local delimiter = parentDelimiter or ","
+  local itemContent = lines[startIdx].content:sub(3)
+
+  if itemContent == "" then
+    return {}, startIdx + 1
+  end
+
+  local headerInfo = parseHeader(itemContent)
+  if headerInfo and not headerInfo.key then
+    local arr = {}
+    local colonPos = findUnquotedChar(itemContent, ":")
+    if colonPos then
+      local afterColon = itemContent:sub(colonPos + 1)
+      if afterColon ~= "" then
+        afterColon = afterColon:match("^%s*(.+)$") or afterColon
+        local tokens = splitValues(afterColon, headerInfo.delimiter)
+        for _, token in ipairs(tokens) do
+          table.insert(arr, parseValue(token))
+        end
+      end
+    end
+
+    local idx = startIdx + 1
+    while idx <= #lines and lines[idx].depth == targetDepth + 2 do
+      local item, nextIdx = decodeValue(lines, idx, targetDepth + 2, config, headerInfo.delimiter)
+      table.insert(arr, item)
+      idx = nextIdx
+    end
+
+    return arr, idx
+  end
+
+  local colonPos = findUnquotedChar(itemContent, ":")
+  if not colonPos then
+    return parseValue(itemContent), startIdx + 1
+  end
+
+  local value = itemContent:sub(colonPos + 1):match("^%s*(.-)%s*$")
+  local obj = {}
+  local parsedKey = parseValue(itemContent:sub(1, colonPos - 1))
+  local idx = startIdx
+
+  local keyHeaderInfo = headerInfo and headerInfo.key and headerInfo or nil
+  if keyHeaderInfo then
+    local arr = {}
+
+    if value ~= "" then
+      local tokens = splitValues(value, keyHeaderInfo.delimiter)
+      for _, token in ipairs(tokens) do
+        table.insert(arr, parseValue(token))
+      end
+    end
+
+    if keyHeaderInfo.fields then
+      local tabularArr
+      tabularArr, idx = parseTabularRows(lines, startIdx + 1, targetDepth + 1, keyHeaderInfo)
+      for _, row in ipairs(tabularArr) do
+        table.insert(arr, row)
+      end
+    else
+      idx = startIdx + 1
+      while idx <= #lines and lines[idx].depth == targetDepth + 1 and lines[idx].content:sub(1, 2) == "- " do
+        local item, nextIdx = decodeValue(lines, idx, targetDepth + 1, config, keyHeaderInfo.delimiter)
+        table.insert(arr, item)
+        idx = nextIdx
+      end
+    end
+
+    obj[keyHeaderInfo.key] = arr
+  elseif value == "" then
+    obj[parsedKey], idx = decodeValue(lines, startIdx + 1, targetDepth + 2, config, delimiter)
+    obj[parsedKey] = obj[parsedKey] or {}
+  else
+    obj[parsedKey] = parseValue(value)
+    idx = startIdx + 1
+  end
+
+  local nextIdx = collectSiblings(obj, lines, idx, targetDepth + 1, delimiter, config)
+  return obj, nextIdx
 end
 
 function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expectValue)
@@ -295,95 +367,15 @@ function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expe
   local content = line.content
 
   if content:sub(1, 2) == "- " then
-    local itemContent = content:sub(3)
-
-    if itemContent == "" then
-      return {}, startIdx + 1
-    end
-
-    local headerInfo = parseHeader(itemContent)
-    if headerInfo and not headerInfo.key then
-      local arr = {}
-      local colonPos = findUnquotedChar(itemContent, ":")
-      if colonPos then
-        local afterColon = itemContent:sub(colonPos + 1)
-        if afterColon ~= "" then
-          afterColon = afterColon:match("^%s*(.+)$") or afterColon
-          local tokens = splitValues(afterColon, headerInfo.delimiter)
-          for _, token in ipairs(tokens) do
-            table.insert(arr, parseValue(token))
-          end
-        end
-      end
-
-      local idx = startIdx + 1
-      while idx <= #lines and lines[idx].depth == targetDepth + 2 do
-        local item, nextIdx = decodeValue(lines, idx, targetDepth + 2, config, headerInfo.delimiter)
-        table.insert(arr, item)
-        idx = nextIdx
-      end
-
-      return arr, idx
-    end
-
-    local colonPos = findUnquotedChar(itemContent, ":")
-    if not colonPos then
-      return parseValue(itemContent), startIdx + 1
-    end
-
-    local value = itemContent:sub(colonPos + 1):match("^%s*(.-)%s*$")
-    local obj = {}
-    local parsedKey = parseValue(itemContent:sub(1, colonPos - 1))
-
-    local keyHeaderInfo = parseHeader(itemContent)
-    if keyHeaderInfo and keyHeaderInfo.key then
-      local arr = {}
-
-      if value ~= "" then
-        local tokens = splitValues(value, keyHeaderInfo.delimiter)
-        for _, token in ipairs(tokens) do
-          table.insert(arr, parseValue(token))
-        end
-      end
-
-      if keyHeaderInfo.fields then
-        local tabularArr, idx = parseTabularRows(lines, startIdx + 1, targetDepth + 1, keyHeaderInfo)
-        for _, row in ipairs(tabularArr) do
-          table.insert(arr, row)
-        end
-        startIdx = idx
-      else
-        local idx = startIdx + 1
-        while idx <= #lines and lines[idx].depth == targetDepth + 1 and lines[idx].content:sub(1, 2) == "- " do
-          local item, nextIdx = decodeValue(lines, idx, targetDepth + 1, config, keyHeaderInfo.delimiter)
-          table.insert(arr, item)
-          idx = nextIdx
-        end
-        startIdx = idx
-      end
-
-      obj[keyHeaderInfo.key] = arr
-    elseif value == "" then
-      obj[parsedKey], startIdx = decodeValue(lines, startIdx + 1, targetDepth + 2, config, delimiter)
-      obj[parsedKey] = obj[parsedKey] or {}
-    else
-      obj[parsedKey] = parseValue(value)
-      startIdx = startIdx + 1
-    end
-
-    local siblingObj, nextIdx = processSiblings(lines, startIdx, targetDepth + 1, delimiter, config)
-    for k, v in pairs(siblingObj) do
-      obj[k] = v
-    end
-    startIdx = nextIdx
-
-    return obj, startIdx
+    return decodeListItem(lines, startIdx, targetDepth, config, delimiter)
   end
 
   local headerInfo = parseHeader(content)
   if headerInfo then
     if headerInfo.key and not expectValue then
-      return processSiblings(lines, startIdx, targetDepth, delimiter, config)
+      local obj = {}
+      local nextIdx = collectSiblings(obj, lines, startIdx, targetDepth, delimiter, config)
+      return obj, nextIdx
     end
 
     local arr = {}
@@ -430,11 +422,7 @@ function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expe
     startIdx = startIdx + 1
   end
 
-  local siblingObj, nextIdx = processSiblings(lines, startIdx, targetDepth, delimiter, config)
-  for k, v in pairs(siblingObj) do
-    obj[k] = v
-  end
-
+  local nextIdx = collectSiblings(obj, lines, startIdx, targetDepth, delimiter, config)
   return obj, nextIdx
 end
 
@@ -442,12 +430,7 @@ end
 ---@param options any
 ---@return table
 local function decode(text, options)
-  local config = options and {} or DEFAULT_CONFIG
-  if options then
-    for k, v in pairs(DEFAULT_CONFIG) do
-      config[k] = options[k] or v
-    end
-  end
+  local config = mergeConfig(options)
 
   if text == "" or text:match("^%s*$") then
     return {}
@@ -495,7 +478,7 @@ local function decode(text, options)
       local colonPos = findUnquotedChar(line.content, ":")
 
       if not colonPos then
-        idx = idx + 1
+        error("Invalid syntax: " .. line.content)
       else
         local value = line.content:sub(colonPos + 1):match("^%s*(.-)%s*$")
         local parsedKey = parseValue(line.content:sub(1, colonPos - 1))

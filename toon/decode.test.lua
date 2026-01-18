@@ -509,4 +509,44 @@ describe("basic parsing", function()
   end)
 end)
 
+describe("escaped quotes outside quoted strings", function()
+  it("parses escaped quotes in unquoted values", function()
+    assertDeepEquals(toon.decode('text: \\"hello\\"'), { text = '"hello"' }, "parse escaped quotes in value")
+  end)
+
+  it("parses escaped quotes in tabular data", function()
+    local toon_str = '[4|]{target|text|locator|desc}\n  마스터|마스터|\\"마스터...|description'
+    assertDeepEquals(toon.decode(toon_str), {
+      { target = "마스터", text = "마스터", locator = '"마스터...', desc = "description" }
+    }, "parse escaped quote in tabular row")
+  end)
+
+  it("parses multiple escaped quotes in tabular data", function()
+    local toon_str = 'items[2|]{a|b}:\n  x|\\"y\\"\n  \\"z|w'
+    assertDeepEquals(toon.decode(toon_str), {
+      items = {
+        { a = "x",  b = '"y"' },
+        { a = '"z', b = "w" }
+      }
+    }, "parse multiple escaped quotes in tabular")
+  end)
+
+  it("parses escaped quotes in array values", function()
+    local toon_str = 'items[3]: a,\\"b\\",c'
+    assertDeepEquals(toon.decode(toon_str), { items = { "a", '"b"', "c" } }, "parse escaped quotes in array")
+  end)
+
+  it("does not confuse escaped quote with start of quoted string", function()
+    local toon_str = 'items[3|]: \\"start|middle|end'
+    assertDeepEquals(toon.decode(toon_str), { items = { '"start', "middle", "end" } },
+      "escaped quote does not start quoted string")
+  end)
+
+  it("handles mixed escaped and quoted strings", function()
+    local toon_str = 'items[3]: \\"a,"b,c",d'
+    assertDeepEquals(toon.decode(toon_str), { items = { '"a', "b,c", "d" } },
+      "mixed escaped and quoted strings in array")
+  end)
+end)
+
 test.printSummary()

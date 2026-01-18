@@ -92,8 +92,10 @@ end
 ---@class Node
 ---@field attributes table<string, string>
 ---@field content string
+---@field openTag string
 ---@field rangeEnd number
 ---@field rangeStart number
+---@field tagName string
 
 ---Extracts all nodes.
 ---@param text string
@@ -158,8 +160,10 @@ local function queryNodes(tagNameRaw, text)
           t_insert(results, {
             attributes = attrs,
             content    = "",
+            openTag    = text:sub(startIdx, tagEnd),
             rangeEnd   = tagEnd,
             rangeStart = startIdx,
+            tagName    = tagNameRaw,
           })
           i = tagEnd + 1
         else
@@ -176,8 +180,10 @@ local function queryNodes(tagNameRaw, text)
             t_insert(results, {
               attributes = attrs,
               content    = contentOnly,
+              openTag    = text:sub(startIdx, tagEnd),
               rangeEnd   = closeEnd,
               rangeStart = startIdx,
+              tagName    = tagNameRaw,
             })
 
             i = closeEnd + 1

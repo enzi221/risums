@@ -61,7 +61,7 @@ local function main(output)
   local data = prelude.toon.decode(body.content)
   if not data or not data.objective or not data.phase or not data.episodes then
     print('[LightBoard] Stage content invalid')
-    return '<lb-lazy id="lb-stage"></lb-lazy>'
+    return '<lb-lazy id="lb-stage" />'
   end
 
   return '<lb-stage>' .. xor(body.content) .. '</lb-stage>'

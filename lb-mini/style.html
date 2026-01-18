@@ -312,7 +312,22 @@
     transition: background 0.1s ease, color 0.1s ease;
     user-select: none;
   }
+
   .lb-mini-btn > svg {
+    height: 1em;
+    width: 1em;
+  }
+
+  .lb-mini-icon-btn {
+    background: transparent;
+    border-radius: var(--border-r-2);
+    color: var(--fg-2);
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.1s ease;
+  }
+  .lb-mini-icon-btn > svg {
+    display: block;
     height: 1em;
     width: 1em;
   }
@@ -376,6 +391,11 @@
     padding: 16px var(--pad-lr) 15px;
   }
 
+  .lb-mini-header > b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .lb-mini-header > b::before {
     content: var(--prefix);
   }
@@ -478,6 +498,16 @@
     justify-content: space-between;
   }
 
+  .lb-mini-comments-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .lb-mini-delete-comment {
+    margin-left: auto;
+    margin-right: -4px;
+  }
+
   .lb-mini-comments-heading {
     color: var(--fg);
     font-size: 12px;
@@ -508,6 +538,10 @@
     .lb-mini-btn:hover {
       background: var(--point);
       color: var(--bg);
+    }
+
+    .lb-mini-icon-btn:hover {
+      color: var(--point);
     }
 
     .lb-mini-close:hover {

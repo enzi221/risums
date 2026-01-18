@@ -268,9 +268,7 @@
     min-height: 80px;
     padding-bottom: 20px;
   }
-  .lb-hn-comments {
-    border-top: 1px solid #34465c;
-  }
+
   .lb-hn-comment-list {
     list-style: none;
     padding: 0;
@@ -278,14 +276,15 @@
   }
 
   .lb-hn-comment-item {
+    align-items: baseline;
+    border-top: 1px dotted #34465c;
     color: #ccc !important;
     display: grid;
-    grid-template-columns: 120px 1fr;
+    grid-template-columns: 120px 1fr auto;
     gap: 12px;
-    padding: 6px 0;
-    border-top: 1px dotted #34465c;
-    align-items: baseline;
     line-height: 1.5;
+    margin: 0;
+    padding: 8px 0;
     font-size: 13px;
     word-wrap: break-word;
     white-space: pre-wrap;
@@ -370,19 +369,54 @@
     color: #757575;
   }
 
-  .lb-hn-add-comment {
+  .lb-hn-btn {
+    align-items: center;
     background: #1a2533;
     border: 1px solid #34465c;
     border-radius: 5px;
     color: #ccc;
+    display: inline-flex;
     font-size: 12px;
-    padding: 4px 0;
+    gap: 4px;
+    padding: 4px 8px;
     transition: background 0.1s ease, color 0.1s ease;
-    width: 100%;
   }
-  .lb-hn-add-comment:hover {
+  .lb-hn-btn:hover {
     background: #07f;
     color: #1e293a;
+  }
+  .lb-hn-btn > svg {
+    height: 1em;
+    width: 1em;
+  }
+
+  .lb-hn-comment-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .lb-hn-icon-btn {
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: #666;
+    cursor: pointer;
+    padding: 2px;
+    transition: color 0.1s ease;
+  }
+  .lb-hn-icon-btn:hover {
+    color: #07f;
+  }
+  .lb-hn-icon-btn > svg {
+    display: block;
+    height: 1em;
+    width: 1em;
+  }
+
+  .lb-hn-delete-comment {
+    align-self: start;
+    display: flex;
   }
 
   .lb-hn-close {
@@ -424,15 +458,23 @@
     .lb-hn-comment-item {
       grid-template-columns: 1fr;
       gap: 4px;
+      position: relative;
     }
 
     .lb-hn-comment-author {
       font-size: 11px;
       margin-bottom: 2px;
+      padding-right: 28px;
     }
 
     .lb-hn-comment-text {
       font-size: 12px;
+    }
+
+    .lb-hn-delete-comment {
+      position: absolute;
+      top: 8px;
+      right: 0;
     }
   }
 </style>

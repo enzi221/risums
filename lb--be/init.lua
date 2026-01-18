@@ -102,6 +102,39 @@ local function findLastCharChat(fullChat, startOffset, range)
   return nil, nil
 end
 
+--- Replaces the inner content of the last [LBDATA START]..[LBDATA END] block.
+--- Returns nil if no block is found.
+--- @param text string
+--- @param inner string
+--- @return string?
+local function replaceLBDATA(text, inner)
+  if not text or text == '' then return nil end
+
+  local startPattern = '%[LBDATA START%]'
+  local endPattern = '%[LBDATA END%]'
+
+  local _, blockStart = nil, nil
+  local searchFrom = 1
+  while true do
+    local s, e = text:find(startPattern, searchFrom)
+    if not s then break end
+    _, blockStart = s, e
+    searchFrom = e + 1
+  end
+
+  if not blockStart then return nil end
+
+  local blockEnd = text:find(endPattern, blockStart + 1)
+  if not blockEnd then return nil end
+
+  local trimmedInner = prelude and prelude.trim and prelude.trim(inner or '') or (inner or '')
+  if trimmedInner ~= '' then
+    trimmedInner = trimmedInner .. '\n'
+  end
+
+  return text:sub(1, blockStart) .. '\n' .. trimmedInner .. text:sub(blockEnd)
+end
+
 --- @param man Manifest
 --- @param prom Chat[]
 --- @param modeOverride '1'|'2'?
@@ -118,24 +151,11 @@ end
 --- @param man Manifest
 --- @param response LLMResult
 --- @return string?
-local function processLLMResult(man, response)
+local function cleanLLMResult(man, response)
   if response.success then
     local cleanOutput = response.result:gsub("```[^\n]*\n?", "")
     cleanOutput = removeNode(cleanOutput, "Thoughts")
     cleanOutput = removeNode(cleanOutput, "lb-process")
-
-    if (man.onOutput) then
-      local success, modifiedOutput = pcall(man.onOutput, triggerId, cleanOutput)
-      if success and modifiedOutput and modifiedOutput ~= '' then
-        cleanOutput = modifiedOutput
-      else
-        print("[LightBoard Backend] Failed processing (onOutput) for " ..
-          man.identifier .. ": " .. tostring(modifiedOutput))
-
-        local reason = success and 'nil 반환' or tostring(modifiedOutput)
-        error('출력 처리 실패(onOutput). ' .. reason)
-      end
-    end
 
     return cleanOutput
   else
@@ -184,14 +204,14 @@ local function runPipeline(man, fullChat, options)
     local response = runLLM(man, prom, modeOverride)
     print('[LightBoard Backend][VERBOSE] Received response.')
 
-    local processSuccess, result = pcall(processLLMResult, man, response)
+    local processSuccess, result = pcall(cleanLLMResult, man, response)
     if not processSuccess then
       error('응답을 처리하지 못했습니다. ' .. tostring(result))
     end
-    print('[LightBoard Backend][VERBOSE] Response processed.')
+    print('[LightBoard Backend][VERBOSE] Response cleaned.')
 
     -- critical failure, instant fallback
-    if modeType == 'generation' and (not result or result == '' or result == null) then
+    if modeType == 'generation' and (not result or result == '' or result == nil) then
       error('모델 응답이 비어있거나 null입니다. 검열됐을 수 있습니다.')
     end
 
@@ -217,12 +237,26 @@ local function runPipeline(man, fullChat, options)
     end
 
     if valid or attempts >= maxRetries then
-      print('[LightBoard Backend][VERBOSE] Validation complete.')
-
-      if not valid then
+      if valid then
+        print('[LightBoard Backend][VERBOSE] Validation complete.')
+      else
         print('[LightBoard] Validation failed for ' ..
           man.identifier .. ' but max retries reached: ' .. tostring(validationError))
       end
+
+      if man.onOutput and result then
+        local success, modifiedOutput = pcall(man.onOutput, triggerId, result)
+        if success and modifiedOutput and modifiedOutput ~= '' then
+          result = modifiedOutput
+        else
+          print("[LightBoard Backend] Failed processing (onOutput) for " ..
+            man.identifier .. ": " .. tostring(modifiedOutput))
+
+          local reason = success and 'nil 반환' or tostring(modifiedOutput)
+          error('출력 처리 실패(onOutput). ' .. reason .. '\n\n출력:\n' .. result:gsub('\n', '\\n'))
+        end
+      end
+
       return result
     end
 
@@ -265,20 +299,9 @@ end
 --- @type fun(man: Manifest, chatContext: Chat[], options: PipelineOptions): Promise<string?>
 local runPipelineAsync = async(runPipeline)
 
-local main = async(function()
-  local active = prelude.getFlagToggle(triggerId, 'lightboard.active')
-  if not active then
-    return
-  end
-
+--- @param manifests Manifest[]
+local main = async(function(manifests)
   local fullChat = getFullChat(triggerId)
-
-  --- @diagnostic disable-next-line: param-type-mismatch
-  local manifests = manifest.list(triggerId)
-  if #manifests == 0 then
-    print("[LightBoard] No active manifests.")
-    return
-  end
 
   local allProcessedResults = {}
   local maxConcurrent = math.min(5, math.max(1, tonumber(getGlobalVar(triggerId, "toggle_lightboard.concurrent")) or 1))
@@ -295,6 +318,8 @@ local main = async(function()
         lazy = man.lazy
       }))
     end
+
+    print('[LightBoard Backend][VERBOSE] Waiting for chunks...')
 
     --- @type string[]
     local chunkResults = Promise.all(currentChunkPromises):await()
@@ -313,20 +338,26 @@ local main = async(function()
     local lastCharChatIdx = findLastCharChat(fullChatNewest, 0, 5)
     local lastCharChat = lastCharChatIdx and fullChatNewest[lastCharChatIdx].data or ''
 
-    local header = '---\n[LBDATA START]'
     local contents = table.concat(allProcessedResults, '\n\n')
-    local footer = '\n\n[LBDATA END]\n---'
+    local updated = replaceLBDATA(lastCharChat, contents)
 
-    local assembled = header .. contents .. footer
-    -- 0: append, 1: prepend, 2: separated
-    local position = getGlobalVar(triggerId, 'toggle_lightboard.position') or '0'
-
-    if position == '2' then
-      addChat(triggerId, 'char', assembled)
+    if updated then
+      setChat(triggerId, lastCharChatIdx ~= nil and (lastCharChatIdx - 1) or -1, updated)
     else
-      local finalMessage = position == '1' and assembled .. '\n\n' .. lastCharChat or
-          lastCharChat .. '\n\n' .. assembled
-      setChat(triggerId, lastCharChatIdx ~= nil and (lastCharChatIdx - 1) or -1, finalMessage)
+      -- Fallback: if a placeholder block wasn't found (unexpected), keep old behavior.
+      local header = '---\n[LBDATA START]'
+      local footer = '\n\n[LBDATA END]\n---'
+      local assembled = header .. '\n' .. contents .. footer
+
+      -- 0: append, 1: prepend, 2: separated
+      local position = getGlobalVar(triggerId, 'toggle_lightboard.position') or '0'
+      if position == '2' then
+        addChat(triggerId, 'char', assembled)
+      else
+        local finalMessage = position == '1' and assembled .. '\n\n' .. lastCharChat or
+            lastCharChat .. '\n\n' .. assembled
+        setChat(triggerId, lastCharChatIdx ~= nil and (lastCharChatIdx - 1) or -1, finalMessage)
+      end
     end
   else
     print("[LightBoard] All manifests processed. No new content to add.")
@@ -336,18 +367,33 @@ end)
 onOutput = async(function(tid)
   setTriggerId(tid)
 
-  if getGlobalVar(tid, "toggle_lightboard.active") == "0" then
+  if getGlobalVar(tid, 'toggle_lightboard.active') == '0' then
     return
   end
 
+  local manifests = manifest.list(triggerId)
+  if #manifests == 0 then
+    return
+  end
+
+  local fullChat = getFullChat(tid)
+  local position = getGlobalVar(tid, 'toggle_lightboard.position') or '0'
+  if position == '0' then
+    setChat(tid, -1, fullChat[#fullChat].data .. '\n\n---\n[LBDATA START]\n[LBDATA END]\n---')
+  elseif position == '1' then
+    setChat(tid, -1, '---\n[LBDATA START]\n[LBDATA END]\n---\n\n' .. fullChat[#fullChat].data)
+  else
+    addChat(tid, 'char', '---\n[LBDATA START]\n[LBDATA END]\n---')
+  end
+
   local success, result = pcall(function()
-    local mainPromise = main()
+    local mainPromise = main(manifests)
     return mainPromise:await()
   end)
 
   if not success then
-    print("[LightBoard Backend] Backend Error: " .. tostring(result))
-    alertError(tid, "[LightBoard] 백엔드 오류. 개발자에게 문의해주세요.\n" .. tostring(result))
+    print('[LightBoard Backend] Backend Error: ' .. tostring(result))
+    alertError(tid, '[LightBoard] 백엔드 오류. 개발자에게 문의해주세요.\n' .. tostring(result))
   end
 end)
 

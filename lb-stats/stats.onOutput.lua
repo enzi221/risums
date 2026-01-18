@@ -56,7 +56,7 @@ function onOutput(triggerId, output)
     return ''
   end
 
-  return output
+  return output:sub(body.rangeStart, body.rangeEnd)
 end
 
 return onOutput

@@ -35,8 +35,9 @@ end
 
 --- Renders a node into HTML.
 --- @param node Node
+--- @param chatIndex number
 --- @return string
-local function render(node)
+local function render(node, chatIndex)
   local rawContent = node.content
   if not rawContent or rawContent == "" then
     return "[LightBoard Error: Empty Content]"
@@ -90,7 +91,7 @@ local function render(node)
     for i, post in ipairs(posts) do
       if post.content then
         local comment_es = {}
-        for _, comment in ipairs(post.comments or {}) do
+        for j, comment in ipairs(post.comments or {}) do
           local comment_e = h.div['lb-comment-reply-card'] {
             h.div['lb-comment-author-details'] {
               h.span['lb-comment-author'] {
@@ -102,6 +103,13 @@ local function render(node)
             },
             h.span['lb-comment-reply-content'] {
               comment.content,
+            },
+            h.span['lb-comment-delete-comment'] {
+              h.button['lb-comment-icon-btn'] {
+                risu_btn = 'lb-comments-delete/' .. chatIndex .. '_' .. i .. '_' .. j,
+                type = 'button',
+                h.lb_trash_icon { closed = true },
+              },
             },
           }
           table.insert(comment_es, comment_e)
@@ -144,6 +152,12 @@ local function render(node)
                   h.span['lb-comment-count'] {
                     post.downvotes or '0',
                   },
+                },
+                h.button['lb-comment-add-reply'] {
+                  risu_btn = 'lb-comments-delete/' .. chatIndex .. '_' .. i,
+                  type = 'button',
+                  h.lb_trash_icon { closed = true },
+                  h.span "삭제"
                 },
                 h.button['lb-comment-add-reply'] {
                   risu_btn = "lb-interaction__lb-comments__AddComment/Author:" .. post.author .. "(" .. post.time .. ")",
@@ -205,7 +219,45 @@ local function render(node)
   return tostring(html)
 end
 
-local function main(data)
+--- @param s string
+--- @return string
+local function escape(s)
+  if not s then return '' end
+  return (s:gsub('\n', '\\n'):gsub('\t', '\\t'))
+end
+
+--- @param posts CommentsPostData[]
+--- @return string
+local function encodePosts(posts)
+  local lines = { '[' .. #posts .. '|]:' }
+  for _, post in ipairs(posts) do
+    local authorField = post.author
+    if post.authorTier and post.authorTier ~= '' then
+      authorField = post.authorTier .. ':' .. post.author
+    end
+    table.insert(lines, '  - author: ' .. escape(authorField))
+    table.insert(lines, '    time: ' .. escape(post.time or ''))
+    table.insert(lines, '    upvotes: ' .. (post.upvotes or '0'))
+    table.insert(lines, '    downvotes: ' .. (post.downvotes or '0'))
+    table.insert(lines, '    content: ' .. escape(post.content or ''))
+    local comments = post.comments or {}
+    if #comments == 0 then
+      table.insert(lines, '    comments[0|]:')
+    else
+      table.insert(lines, '    comments[' .. #comments .. '|]{content|time|author}:')
+      for _, c in ipairs(comments) do
+        local cAuthor = c.author
+        if c.authorTier and c.authorTier ~= '' then
+          cAuthor = c.authorTier .. ':' .. c.author
+        end
+        table.insert(lines, '      ' .. escape(c.content or '') .. '|' .. escape(c.time or '') .. '|' .. escape(cAuthor))
+      end
+    end
+  end
+  return table.concat(lines, '\n')
+end
+
+local function main(data, meta)
   if not data or data == "" then
     return ""
   end
@@ -231,12 +283,11 @@ local function main(data)
     end
     if i == #extractionResult then
       -- render lastResult in its original position
-      local processSuccess, processResult = pcall(render, lastResult)
+      local processSuccess, processResult = pcall(render, lastResult, meta and meta.index or 0)
       if processSuccess then
         output = output .. processResult
       else
-        print("[LightBoard] Comment parsing failed:", tostring(processResult))
-        output = output .. "\n\n<!-- LightBoard Block Error -->"
+        output = output .. '<lb-lazy id="lb-comments">오류: ' .. tostring(processResult) .. '</lb-lazy>'
       end
     end
     lastIndex = match.rangeEnd + 1
@@ -257,12 +308,106 @@ listenEdit(
       end
     end
 
-    local success, result = pcall(main, data)
+    local success, result = pcall(main, data, meta)
     if success then
       return result
     else
-      print("[LightBoard] Comment display failed:", tostring(result))
-      return data
+      return data .. '<lb-lazy id="lb-comments">오류: ' .. tostring(result) .. '</lb-lazy>'
     end
   end
 )
+
+onButtonClick = async(function(tid, code)
+  local prefix = 'lb%-comments%-delete/'
+  local _, prefixEnd = string.find(code, prefix)
+
+  if not prefixEnd then
+    return
+  end
+
+  setTriggerId(tid)
+
+  local body = code:sub(prefixEnd + 1)
+  if body == '' then
+    return
+  end
+
+  local parts = prelude.split(body, '_')
+  local chatIndex = tonumber(parts[1])
+  local postIndex = tonumber(parts[2])
+  local commentIndex = parts[3] and tonumber(parts[3]) or nil
+
+  local deathMessage = (chatIndex or '?') .. '번 채팅의 ' .. (postIndex or '?') .. '번 글을 찾을 수 없습니다.'
+
+  if not chatIndex or not postIndex then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  local targetType = commentIndex and '댓글' or '글'
+  local confirmed = alertConfirm(tid, '정말 이 ' .. targetType .. '을 지우시겠습니까?'):await()
+  if not confirmed then
+    return
+  end
+
+  local chatData = getChat(tid, chatIndex)
+  if not chatData or not chatData.data then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  local extractionSuccess, extractionResult = pcall(prelude.queryNodes, 'lb-comments', chatData.data)
+  if not extractionSuccess or not extractionResult or #extractionResult == 0 then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  local lastResult = extractionResult[#extractionResult]
+  local posts = prelude.toon.decode(lastResult.content)
+
+  for _, post in ipairs(posts) do
+    post.author = post.author or '익명'
+    local postAuthorSplat = prelude.split(post.author, ':')
+    if #postAuthorSplat >= 2 then
+      post.author = postAuthorSplat[2]
+      post.authorTier = postAuthorSplat[1] or ''
+    else
+      post.authorTier = ''
+    end
+    for _, comment in ipairs(post.comments or {}) do
+      comment.author = comment.author or '익명'
+      local commentAuthorSplat = prelude.split(comment.author, ':')
+      if #commentAuthorSplat >= 2 then
+        comment.author = commentAuthorSplat[2]
+        comment.authorTier = commentAuthorSplat[1] or ''
+      else
+        comment.authorTier = ''
+      end
+    end
+  end
+
+  if postIndex < 1 or postIndex > #posts then
+    alertNormal(tid, deathMessage)
+    return
+  end
+
+  if commentIndex then
+    local post = posts[postIndex]
+    if not post.comments or commentIndex < 1 or commentIndex > #post.comments then
+      alertNormal(tid, chatIndex .. '번 채팅 ' .. postIndex .. '번 글의 ' .. commentIndex .. '번 댓글을 찾을 수 없습니다.')
+      return
+    end
+    table.remove(post.comments, commentIndex)
+  else
+    table.remove(posts, postIndex)
+  end
+
+  local newContent = encodePosts(posts)
+  local newData = chatData.data:sub(1, lastResult.rangeStart - 1)
+      .. lastResult.openTag .. '\n'
+      .. newContent .. '\n'
+      .. '</' .. lastResult.tagName .. '>'
+      .. chatData.data:sub(lastResult.rangeEnd + 1)
+
+  setChat(tid, chatIndex, newData)
+end)
