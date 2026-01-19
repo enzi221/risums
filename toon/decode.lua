@@ -94,6 +94,13 @@ local function parseValue(token)
   return token:find("\\") and unescapeString(token) or token
 end
 
+local function assertKeyNotNil(key)
+  if key == nil then
+    error("Invalid key: null")
+  end
+  return key
+end
+
 local function splitValues(line, delimiter)
   return tokenize(line, delimiter)
 end
@@ -253,7 +260,7 @@ local function collectSiblings(obj, lines, startIdx, targetDepth, delimiter, con
       end
 
       local sibValue = siblingLine.content:sub(sibColonPos + 1):match("^%s*(.-)%s*$")
-      local sibParsedKey = parseValue(siblingLine.content:sub(1, sibColonPos - 1))
+      local sibParsedKey = assertKeyNotNil(parseValue(siblingLine.content:sub(1, sibColonPos - 1)))
 
       if sibValue == "" then
         local child
@@ -309,7 +316,7 @@ local function decodeListItem(lines, startIdx, targetDepth, config, parentDelimi
 
   local value = itemContent:sub(colonPos + 1):match("^%s*(.-)%s*$")
   local obj = {}
-  local parsedKey = parseValue(itemContent:sub(1, colonPos - 1))
+  local parsedKey = assertKeyNotNil(parseValue(itemContent:sub(1, colonPos - 1)))
   local idx = startIdx
 
   local keyHeaderInfo = headerInfo and headerInfo.key and headerInfo or nil
@@ -349,6 +356,19 @@ local function decodeListItem(lines, startIdx, targetDepth, config, parentDelimi
 
   local nextIdx = collectSiblings(obj, lines, idx, targetDepth + 1, delimiter, config)
   return obj, nextIdx
+end
+
+local function parseListArray(lines, startIdx, targetDepth, config, delimiter)
+  local arr = {}
+  local idx = startIdx
+
+  while idx <= #lines and lines[idx].depth == targetDepth and lines[idx].content:sub(1, 2) == "- " do
+    local item, nextIdx = decodeValue(lines, idx, targetDepth, config, delimiter)
+    table.insert(arr, item)
+    idx = nextIdx
+  end
+
+  return arr, idx
 end
 
 function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expectValue)
@@ -412,11 +432,16 @@ function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expe
 
   local value = content:sub(colonPos + 1):match("^%s*(.-)%s*$")
   local obj = {}
-  local parsedKey = parseValue(content:sub(1, colonPos - 1))
+  local parsedKey = assertKeyNotNil(parseValue(content:sub(1, colonPos - 1)))
 
   if value == "" then
-    obj[parsedKey], startIdx = decodeValue(lines, startIdx + 1, targetDepth + 1, config, delimiter)
-    obj[parsedKey] = obj[parsedKey] or {}
+    local nextLine = lines[startIdx + 1]
+    if nextLine and nextLine.depth == targetDepth + 1 and nextLine.content:sub(1, 2) == "- " then
+      obj[parsedKey], startIdx = parseListArray(lines, startIdx + 1, targetDepth + 1, config, delimiter)
+    else
+      obj[parsedKey], startIdx = decodeValue(lines, startIdx + 1, targetDepth + 1, config, delimiter)
+      obj[parsedKey] = obj[parsedKey] or {}
+    end
   else
     obj[parsedKey] = parseValue(value)
     startIdx = startIdx + 1
@@ -428,7 +453,7 @@ end
 
 ---@param text string
 ---@param options any
----@return table
+---@return any
 local function decode(text, options)
   local config = mergeConfig(options)
 
@@ -481,11 +506,16 @@ local function decode(text, options)
         error("Invalid syntax: " .. line.content)
       else
         local value = line.content:sub(colonPos + 1):match("^%s*(.-)%s*$")
-        local parsedKey = parseValue(line.content:sub(1, colonPos - 1))
+        local parsedKey = assertKeyNotNil(parseValue(line.content:sub(1, colonPos - 1)))
 
         if value == "" then
-          obj[parsedKey], idx = decodeValue(lines, idx + 1, 1, config, ",")
-          obj[parsedKey] = obj[parsedKey] or {}
+          local nextLine = lines[idx + 1]
+          if nextLine and nextLine.depth == 1 and nextLine.content:sub(1, 2) == "- " then
+            obj[parsedKey], idx = parseListArray(lines, idx + 1, 1, config, ",")
+          else
+            obj[parsedKey], idx = decodeValue(lines, idx + 1, 1, config, ",")
+            obj[parsedKey] = obj[parsedKey] or {}
+          end
         else
           obj[parsedKey] = parseValue(value)
           idx = idx + 1

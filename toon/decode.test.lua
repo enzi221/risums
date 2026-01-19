@@ -266,6 +266,23 @@ describe("arrays of objects (tabular and list items)", function()
     }, "parse list array")
   end)
 
+  it("parses implicit list arrays without header length", function()
+    local toon_str = [[scenes:
+  - camera: from above, upper body, pov
+    scene: 1girl, interior, night, ::dark::3
+  - camera: from behind
+    scene: ::dark::3
+keyvis:
+  scene: ::dark::3]]
+    assertDeepEquals(toon.decode(toon_str), {
+      scenes = {
+        { camera = "from above, upper body, pov", scene = "nsfw, 1girl, interior, night, ::dark::3" },
+        { camera = "from behind",                 scene = "nsfw, ::dark::3" }
+      },
+      keyvis = { scene = "nsfw, ::dark::3" }
+    }, "parse implicit list array")
+  end)
+
   it("parses objects with nested values inside list items", function()
     local toon_str = "items[1]:\n  - id: 1\n    nested:\n      x: 1"
     assertDeepEquals(toon.decode(toon_str), {

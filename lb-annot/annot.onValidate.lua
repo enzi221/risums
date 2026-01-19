@@ -33,7 +33,7 @@ function onValidate(triggerId, output)
     if #annot[2] < #annot[1] then
       table.insert(errors, 'Target #' .. i .. ' has shorter text than its target which is impossible.')
     end
-    if #annot[3] ~= '' and #annot[3] < #annot[2] then
+    if #annot[3] ~= '' and (#annot[3] < #annot[2]) then
       table.insert(errors, 'Target #' .. i .. ' has shorter locator than its text which is impossible.')
     end
     if annot[4] == '' then
