@@ -88,7 +88,7 @@ function onOutput(tid, output)
     end
   end
 
-  return '<lb-xnai of="' .. targetIndex .. '" />'
+  return '<lb-xnai of="' .. targetIndex .. '">\n' .. nodes[#nodes].content .. '\n</lb-xnai>'
 end
 
 return onOutput

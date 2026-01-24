@@ -270,11 +270,14 @@ local function runPipeline(man, fullChat, options)
     })
 
     local thoughtsFlag = getGlobalVar(triggerId, 'toggle_lightboard.thoughts') or '0'
-    local printInstruction =
-    'Only print the corrected structured data without apologies, explanations, or any preambles.'
+    local printInstruction = string.format(
+    'Only print the corrected full data wrapped in %s, without apologies, explanations, or any preambles.',
+      man.identifier)
     if thoughtsFlag == '0' then
       printInstruction =
-      'Only print the corrected structured data without `<lb-process>` block, apologies, explanations, or any preambles.'
+          string.format(
+          'Only print the corrected full data wrapped in %s, without `<lb-process>` block, apologies, explanations, or any preambles.',
+            man.identifier)
     end
 
     local retryInstruction = string.format([[<system>

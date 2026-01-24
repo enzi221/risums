@@ -276,10 +276,10 @@ keyvis:
   scene: ::dark::3]]
     assertDeepEquals(toon.decode(toon_str), {
       scenes = {
-        { camera = "from above, upper body, pov", scene = "nsfw, 1girl, interior, night, ::dark::3" },
-        { camera = "from behind",                 scene = "nsfw, ::dark::3" }
+        { camera = "from above, upper body, pov", scene = "1girl, interior, night, ::dark::3" },
+        { camera = "from behind",                 scene = "::dark::3" }
       },
-      keyvis = { scene = "nsfw, ::dark::3" }
+      keyvis = { scene = "::dark::3" }
     }, "parse implicit list array")
   end)
 
@@ -523,6 +523,34 @@ describe("basic parsing", function()
   it("root-level content (0 indentation) is always valid", function()
     local toon_str = "a: 1\nb: 2\nc: 3"
     assertDeepEquals(toon.decode(toon_str), { a = 1, b = 2, c = 3 }, "parse root level content")
+  end)
+end)
+
+describe("array values with colons", function()
+  it("parses array element containing colon as value, not key", function()
+    local toon_str = "chars[1]:\n  girl, female, 1.4::brown hair::"
+    assertDeepEquals(toon.decode(toon_str), { chars = { "girl, female, 1.4::brown hair::" } },
+      "parse array element with colons")
+  end)
+
+  it("parses multi-line array with colon-containing values", function()
+    local toon_str = "items[2]:\n  a::b::c\n  x::y::z"
+    assertDeepEquals(toon.decode(toon_str), { items = { "a::b::c", "x::y::z" } },
+      "parse array with double-colon values")
+  end)
+
+  it("parses nested array in object with colon-containing string elements", function()
+    local toon_str =
+    "scene:\n  - camera: straight-on\n    characters[1]:\n      girl, 1.4::brown hair::\n    scene: 1girl"
+    assertDeepEquals(toon.decode(toon_str), {
+      scene = {
+        {
+          camera = "straight-on",
+          characters = { "girl, 1.4::brown hair::" },
+          scene = "1girl"
+        }
+      }
+    }, "parse nested array with colon-containing element")
   end)
 end)
 

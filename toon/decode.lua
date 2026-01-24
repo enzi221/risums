@@ -371,7 +371,7 @@ local function parseListArray(lines, startIdx, targetDepth, config, delimiter)
   return arr, idx
 end
 
-function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expectValue)
+function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expectValue, isArrayElement)
   local delimiter = parentDelimiter or ","
 
   if startIdx > #lines then
@@ -388,6 +388,11 @@ function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expe
 
   if content:sub(1, 2) == "- " then
     return decodeListItem(lines, startIdx, targetDepth, config, delimiter)
+  end
+
+  -- If we're parsing an array element (not a list item), treat entire line as value
+  if isArrayElement then
+    return parseValue(content), startIdx + 1
   end
 
   local headerInfo = parseHeader(content)
@@ -417,7 +422,7 @@ function decodeValue(lines, startIdx, targetDepth, config, parentDelimiter, expe
 
     local idx = startIdx + 1
     while idx <= #lines and lines[idx].depth == targetDepth + 1 do
-      local item, nextIdx = decodeValue(lines, idx, targetDepth + 1, config, headerInfo.delimiter)
+      local item, nextIdx = decodeValue(lines, idx, targetDepth + 1, config, headerInfo.delimiter, false, true)
       table.insert(arr, item)
       idx = nextIdx
     end

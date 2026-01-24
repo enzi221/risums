@@ -61,7 +61,7 @@ function onValidate(triggerId, output)
       print('locating', locator, locStart)
 
       if not locStart then
-        table.insert(errors, 'Cannot locate "' .. locator .. '". Fix the locator or remove the entry.')
+        table.insert(errors, 'Cannot locate "' .. locator .. '". Fix the locator or remove the entry. Supervisor approval still valid.')
       end
     end
   end

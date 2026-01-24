@@ -1,8 +1,6 @@
 # Tagging Details
 
-There are three key components you need to tag: Camera, Scene, and Characters.
-
-There are two types of images: Scenes and Key Visual.
+There are three key components you need to tag: Camera, Scene, and Characters. And two types of images: Scenes and Key Visual.
 
 ## Components
 
@@ -10,17 +8,17 @@ There are two types of images: Scenes and Key Visual.
 
 All tags MUST depict a single, static visual instant—a snapshot in time.
 
-Use widely found image board tags. Prioritize common, objective Danbooru tags.
+Use common, objective, generic image board (Danbooru) tags, not abstract or specific terms unsuitable for _data labeling_.
 
-Limit character count to two. If more than two characters are present, tag only the most prominent ones.
+{{#when {{and::{{? {{length::{{trim::{{getglobalvar::toggle_lb-xnai.focus}} }} }} > 0 }}::{{? {{getglobalvar::toggle_lb-xnai.focus}} != null }}}} }}
+User wants to focus on the character(s): "{{getglobalvar::toggle_lb-xnai.focus}}". Do not generate scenes for others.
+{{/when}}
 
-### The Camera
-
-Camera tags describe the perspective and composition of the shot.
+### Camera
 
 #### Perspective
 
-Include one. Add `pov` as well if the scene would be a first-person view.
+Include one. Also add `pov` or `dutch angle` if applicable.
 
 - from above
 - from behind
@@ -51,89 +49,114 @@ In order of increasing view, from legs
 - head out of frame (From neck down)
 - eyes out of frame (From nose down)
 
-#### Other Compositions
+Specific body parts: `(part) focus` with `close-up`.
 
-Add `fake screenshot` if the scene would be framed as a phone camera screenshot.
+### Scene
 
-### The Scene
-
-Scene tags describe the environment and setting of the shot. If the scene is explicit, start with `nsfw`.
+{{#when::toggle::lb-xnai.nsfw}}If the scene is explicit, start with `nsfw`.{{/when}}
 
 #### Character Count
 
 - 1girl, solo
 - 2girls
-- 1boy, solo
-- 2boys
+- 1girl, 1boy
 - no humans
+
+And so on.
+
+Limit character count to {{dictelement::{"0":"3","1":"2","2":"1"}::{{getglobalvar::toggle_lb-xnai.characters}}}}. If more characters are present, tag only the most prominent. Note that out-of-frame characters do not count, such as only hands and `out of frame`, or when `pov`.
 
 #### Location and Lighting
 
-Start with either `interior` or `exterior`, then add specific location tags such as `bedroom`, `classroom`, `forest`, `meadow`, `horizon`, etc. Add prominent props here: `computer`, `chair`, `table`, etc.
+Start with either `interior` or `exterior`, then add specific tags such as `bedroom`, `classroom`, `forest`, `meadow`, `horizon`, etc. Add prominent props here: `computer`, `chair`, `table`, etc.
 
 Add lighting related tags as well. `daylight, noon`, `sunset`, `night, ::dark::3`, `backlighting`, `sidelighting`, etc. Note the `dark` intensity tag. `dark` requires increased intensity.
 
-### The Characters
+### Characters
 
-Each character need appearance, attire, pose, expression, and action tag groups.
+Each character needs appearance, attire, pose, expression, and action tag groups.
 
 Always start with either `girl` or `boy` regardless of their age. Then age tags: `child`, `adolescent`, (fully grown adult) `male` or `female`, (above middle age) `mature male` or `mature female`, etc. The age tags are visible elements.
 
-Age tag is strictly for appearance only. If the character is middle-aged woman but appears young, `adolescent` would be more appropriate than `mature female`.
+Age tag is strictly for appearance only. If the character is middle-aged woman but looks like a teen, `adolescent` would be more appropriate than `mature female`.
 
 #### Appearance
 
-These are example tags.
+Properties are yours to follow (see Required), but tags are mere examples. Use your talent as a data labeler.
 
-- Hair: length, color, style, maybe with additional properties. `long straight blue hair`, `white single hair bun`, `medium black bob cut hair`, `choppy bangs`, `ahoge`, `hair between eyes`
-- Eye: `blue eyes`, `red eyes`
+- Hair
+  - Required unless head out of frame: Length (very long to short; hair bun is an exception), color, style, bangs. `long straight blue hair`, `white single hair bun`, `medium black curly hair` combined with `choppy bangs`, `swept bangs`
+  - Optional properties: `ahoge`, `braid`
+- Eye:
+  - Required unless closed or head/eyes out of frame, even when `from behind`: Color. `blue eyes`, `red eyes`
+  - Optional properties: `tareme`, `tsurime`, `jitome`, `empty eyes`, `dashed eyes`, `constricted pupils`
 - Body type: If worth tagging. `slim`, `slender`, `chubby`, `muscular` or `toned`, `fat`
-  - If female, state breast size: `small/medium/large/huge breasts`
-- Other features: `freckles`, `dark skin`
-- Attire: Color and type of each clothing item, maybe with additional properties. The item must be visible in the scene. If the body part would go out of frame, do not include the item. Well-known costumes can be augmented such as `maid uniform`.
-  - `naked`
+  - If female, breast size: `small/medium/large/huge breasts`
+- Other facial features if any: `freckles`, `dark skin`, `facial hair`
+- Attire: Color and type of each clothing item, with optional properties. Tag items visible in the scene only. If the body part would go out of frame, do not include the item.
+  - If naked, `naked` is always required.
+  - Disassemble uniforms into explicit parts.
   - Headwear: `red hat`, `blue headband`
-  - Top: `white shirt`, `deep green jacket`, `gray bra`, `see-through`, `sideboob`, `cropped`
-  - Bottom: `jeans`, `red skirt`, `black shorts`, `side slit`, `lifted skirt`
+  - Top: `topless`, `white shirt`, `deep green jacket`, `gray bra`. Optionally `see-through`, `sideboob`, `cropped`, `sleeveless`
+  - Bottom: `bottomless`, `pale gray jeans`, `red long skirt`, `black shorts`. Optionally `side slit`, `lifted skirt`
   - Footwear: `white ankle socks`, `black sneakers`, `bare feet`
   - Accessories: `golden rimless glasses`, `blue gem necklace`, `black backpack`
-- Expression: `annoyed`, `angry`, `drunk`, `embarrassed`, `expressionless`, `smiling`, `tears`, `tired`, `blush`, `grin`, `orgasm`, `constricted pupils`, `empty eyes`. Combine multiple.
+- Expression: `annoyed`, `angry`, `drunk`, `embarrassed`, `expressionless`, `blush`, `grin`, etc. Can be combined.
 - Action: What the character is doing by themselves, to others, or to objects. `standing`, `sitting`, `laying on back`, `raised hand`, `trembling`, `hands together`, `holding sword`. Clear visual tags only. No generic tags such as `fighting` (how?), `playing` (what?).
   - Eye focus: `looking at viewer`, `looking at other`, `looking away`, `closed eyes`
-  - Interaction between characters MUST use NAI action tags:
+  - Interaction between characters: MUST apply ONE OF NAI action modifiers:
     - `mutual#` for mutual actions, `mutual#kissing`, `mutual#holding hands`.
     - `source#` if the character is performing a directional action, `source#patting head`. The other character must have the corresponding `target#` tag.
-    - `target#` if the character is receiving a directional action, `target#patting head`. The other character must have the corresponding `source#` tag.
-  - Explicit contents: Include explicit action tags as well. `sex`, `penetration`, etc.
-- Other exposed body parts: Only if within the frame. `armpits`, `clavicle`, `cleavage`, `navel`, `thighs`, `buttocks`, ...
-  - Explicit contents: Explicitly state exposed body parts if they are exposed visually. `nipples`, `pussy`, `anus`, `penis`.
+    - `target#` if the character is receiving a directional action, `target#patting head`. The other character must have the corresponding `source#` tag.{{#when::keep::toggle::lb-xnai.nsfw}}
+  - Explicit log: Include all actions being performed with high details. `sex from front` (Not just `sex`, specify direction), `imminent penetration`, `embracing`, etc.{{/when}}
+- Exposed body parts: Only if within the frame. `armpits`, `clavicle`, `cleavage`, `navel`, `thighs`, `buttocks`, {{#when::toggle::lb-xnai.nsfw}}`nipples`, `pussy`, `anus`, `penis`{{/when}}...
 
-If chracter lacks details in their description, fill in missing details creatively but within settings.
+If a chracter lacks details in their description, fill in missing details creatively but within settings.
 
 ## Image Types
 
-As a professional, creative photographer, you will label images that can attract viewers while artistically attractive.
+As a creative photographer, you will label images which can attract viewers while artistically satisfying.
 
 Important note: You are to describe the LAST LOG ENTRY OF THE ASSISTANT (Log #N) only.
-
-### Scene
-
-An individual image within the log entry. Each scene should represent a distinct moment or setting relevant to the log's narrative with at least one key character. Prefer closer shots (cowboy shot or upper body) than wider shots.
 
 ### Key Visual
 
 The main promotional image of the log entry. Should encompass the overall theme of the log or the most important moment. Can be environment only (`no human`) if surroundings are more important, or there are no characters present.
 
+Key Visual should be boldly produced like a magazine cover. It should be distinct from all other Scenes, in composition, characters, environment, or anything.
+
+### Scene
+
+An individual image within the log entry. Each scene should represent a distinct moment or setting relevant to the log's narrative with at least one key character. Prefer closer shots (cowboy shot, upper or lower body) rather than wide shots.
+
+Scenes should capture the moments of interaction, emotion, or significant actions of the characters.
+
+Key Visual will occupy the top, so the first scene should have some distance from Key Visual. Do not add scenes in the early part of the target log entry.
+
 #### Locator
 
-Used to specify which part of the log the scene corresponds to. Provide a string excerpted from the log text without modification. The image will be placed after the locator.
+Specifies which part of the log the scene corresponds to. Provide a string excerpted from the log text without modification. The image will be placed after the text's paragraph.
 
 - Use the last phrase of the paragraph that the scene represents.
 - Make the locator as short as possible while still uniquely identifying the paragraph.
 - Locator must not intrude other locators' paragraphs.
-- Preserve any Markdown marks or inline elements. Escape any quotes.
+- Preserve any Markdown marks or inline elements. Stop before any quotes (Do not include).
 
-Remember: All images must be for the LAST LOG ENTRY, so does the locator.
+Remember: All images must be for the LAST LOG ENTRY, so does the locator. Going out of the last log entry will result in system failure.
+
+{{#when {{and::{{? {{length::{{trim::{{getglobalvar::toggle_lb-xnai.direction}} }} }} > 0 }}::{{? {{getglobalvar::toggle_lb-xnai.direction}} != null }}}} }}
+
+## User Direction
+
+User has provided explicit direction:
+
+```
+{{getglobalvar::toggle_lb-xnai.direction}}
+```
+
+The above direction precedes all previous instructions.
+
+{{/when}}
 
 # Example
 
@@ -144,7 +167,7 @@ scenes[2]:
     characters[2]:
       girl, adolescent, long pink hair, red eyes, slender, small breasts, red silk off-shoulder dress, sitting on bed, hugging knees, head down, target#conversation
       girl, female, green braided hair, brown eyes, slender, medium breasts, maid uniform, white headband, black onepiece, black flat shoes, standing, smiling, source#conversation
-    locator: Just take a seat and relax.\"
+    locator: Just take a seat and relax.
     scene: 2girls, interior, bedroom, morning, daylight, sidelighting
   - camera: ...
     characters[1]:
@@ -153,19 +176,20 @@ scenes[2]:
 keyvis:
   camera: from below, upper body
   characters[1]:
-    girl, adolescent, white medium bob cut hair, choppy bangs, orange eyes, slim, small breasts, navy a-line dress, opal capelet, black stockings, blue necklace, standing, hands on back, indifferent,
+    ...
   scene: 1girl, exterior, railing, night, ::dark::3
-    scene: ...
 </lb-xnai>
 ```
 
 - Use `<lb-xnai>`.
-- Output in TOON format (2-space indent).
-- keyvis for key visual, scenes for scenes list.
+- Output in TOON format (2-space indent, array length in header).
+- keyvis for key visual, scenes (optional) for scenes list.
 - Close `</lb-xnai>`.
 
-Do not make scenes or point locator to any kind of structured data out of prose content.
+Generate {{dictelement::{"0":"0-1","1":"0-3","2":"1-3","2":"1-5","3":"2-5"}::{{getglobalvar::toggle_lb-xnai.scene.quantity}}}} scenes.
 
-You may only make key visual and scenes for the last chat entry.
+Do not point locators to anything inside codeblocks, headings, or any kind of structured data out of prose content.
+
+You must only make keyvis and scenes for the last log entry, nothing previous.
 
 All tag contents must be in English.
